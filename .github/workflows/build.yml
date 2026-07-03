@@ -8,8 +8,7 @@ on:
   workflow_dispatch: # allows manual trigger from the GitHub UI
 
 env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true   # suppress Node20 deprecation warnings
-  JAVA_TOOL_OPTIONS: "-Xmx4g"                      # give Gradle enough heap on CI
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true  # suppress Node20 deprecation warnings
 
 jobs:
   build:
@@ -53,9 +52,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      # 7. Grant execute permission to Gradle wrapper
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      # 7. Fix CRLF line endings on gradlew (caused by Windows git config)
+      #    Without this the Linux shell cannot parse the script header
+      - name: Fix gradlew line endings
+        run: sed -i 's/\r$//' gradlew && chmod +x gradlew
 
       # 8. Build the debug APK
       - name: Build Debug APK
@@ -68,4 +68,3 @@ jobs:
           name: HabitTracker-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
-

@@ -12,8 +12,10 @@ import com.habittracker.app.data.repository.HabitRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.temporal.TemporalAdjusters
 
 data class HabitTrackerUiState(
     val habits: List<Habit> = emptyList(),
@@ -21,11 +23,23 @@ data class HabitTrackerUiState(
     val dailyCounts: List<DailyCount> = emptyList(),
     val wellnessEntry: WellnessEntry? = null,
     val selectedMonth: YearMonth = YearMonth.now(),
-    val selectedWeekStart: LocalDate = LocalDate.now().with(
-        java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY)
-    ),
+    val selectedWeekStart: LocalDate = LocalDate.now()
+        .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)),
     val today: LocalDate = LocalDate.now(),
     val totalHabits: Int = 0
+)
+
+// Internal container to avoid 6-flow combine (max typed overload is 5)
+private data class HabitData(
+    val habits: List<Habit>,
+    val completions: List<HabitCompletion>,
+    val dailyCounts: List<DailyCount>
+)
+
+private data class ContextData(
+    val wellness: WellnessEntry?,
+    val month: YearMonth,
+    val weekStart: LocalDate
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -33,11 +47,9 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
 
     private val repository: HabitRepository
 
-    private val _selectedMonth = MutableStateFlow(YearMonth.now())
+    private val _selectedMonth    = MutableStateFlow(YearMonth.now())
     private val _selectedWeekStart = MutableStateFlow(
-        LocalDate.now().with(
-            java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY)
-        )
+        LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     )
 
     val uiState: StateFlow<HabitTrackerUiState>
@@ -46,76 +58,69 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
         val db = (application as HabitTrackerApplication).database
         repository = HabitRepository(db.habitDao(), db.habitCompletionDao(), db.wellnessDao())
 
-        // Seed default habits if none exist
         viewModelScope.launch { seedDefaultHabitsIfEmpty() }
 
-        val habitsFlow = repository.allHabits
-
-        val completionsFlow = _selectedWeekStart.flatMapLatest { weekStart ->
+        // ── Flow 1-3: habit list + week completions + daily counts ────────────
+        val habitDataFlow: Flow<HabitData> = _selectedWeekStart.flatMapLatest { weekStart ->
             val startDay = weekStart.toEpochDay()
-            val endDay = weekStart.plusDays(6).toEpochDay()
-            repository.getCompletionsInRange(startDay, endDay)
+            val endDay   = weekStart.plusDays(6).toEpochDay()
+            combine(
+                repository.allHabits,
+                repository.getCompletionsInRange(startDay, endDay),
+                repository.getDailyCompletionCounts(startDay, endDay)
+            ) { habits, completions, counts ->
+                HabitData(habits, completions, counts)
+            }
         }
 
-        val dailyCountsFlow = _selectedWeekStart.flatMapLatest { weekStart ->
-            val startDay = weekStart.toEpochDay()
-            val endDay = weekStart.plusDays(6).toEpochDay()
-            repository.getDailyCompletionCounts(startDay, endDay)
-        }
-
-        val wellnessFlow = flow {
-            repository.getWellnessEntry(LocalDate.now().toEpochDay()).collect { emit(it) }
-        }
-
-        uiState = combine(
-            habitsFlow,
-            completionsFlow,
-            dailyCountsFlow,
-            wellnessFlow,
+        // ── Flow 4-6: wellness entry + selected month + selected week ─────────
+        val contextDataFlow: Flow<ContextData> = combine(
+            repository.getWellnessEntry(LocalDate.now().toEpochDay()),
             _selectedMonth,
             _selectedWeekStart
-        ) { habits, completions, dailyCounts, wellness, month, weekStart ->
+        ) { wellness, month, weekStart ->
+            ContextData(wellness, month, weekStart)
+        }
+
+        // ── Final combine: only 2 flows → well within typed-overload limit ────
+        uiState = combine(habitDataFlow, contextDataFlow) { habitData, ctx ->
             HabitTrackerUiState(
-                habits = habits,
-                completions = completions,
-                dailyCounts = dailyCounts,
-                wellnessEntry = wellness,
-                selectedMonth = month,
-                selectedWeekStart = weekStart,
-                today = LocalDate.now(),
-                totalHabits = habits.size
+                habits           = habitData.habits,
+                completions      = habitData.completions,
+                dailyCounts      = habitData.dailyCounts,
+                wellnessEntry    = ctx.wellness,
+                selectedMonth    = ctx.month,
+                selectedWeekStart = ctx.weekStart,
+                today            = LocalDate.now(),
+                totalHabits      = habitData.habits.size
             )
         }.stateIn(
-            scope = viewModelScope,
+            scope   = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = HabitTrackerUiState()
         )
     }
 
+    // ── Public actions ────────────────────────────────────────────────────────
+
     fun selectMonth(yearMonth: YearMonth) {
         _selectedMonth.value = yearMonth
-        // Move week start to the first Monday of that month
-        val firstOfMonth = yearMonth.atDay(1)
-        val mondayOfFirstWeek = firstOfMonth.with(
-            java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY)
-        )
-        _selectedWeekStart.value = mondayOfFirstWeek
+        val monday = yearMonth.atDay(1)
+            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        _selectedWeekStart.value = monday
     }
 
     fun selectWeekStart(date: LocalDate) {
-        _selectedWeekStart.value = date
+        _selectedWeekStart.value =
+            date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     }
 
     fun toggleHabitCompletion(habitId: Long, dateEpochDay: Long) {
-        viewModelScope.launch {
-            repository.toggleCompletion(habitId, dateEpochDay)
-        }
+        viewModelScope.launch { repository.toggleCompletion(habitId, dateEpochDay) }
     }
 
     fun addHabit(name: String, colorHex: String = "#7C3AED") {
-        viewModelScope.launch {
-            repository.addHabit(name.trim(), colorHex)
-        }
+        viewModelScope.launch { repository.addHabit(name.trim(), colorHex) }
     }
 
     fun deleteHabit(habit: Habit) {
@@ -127,8 +132,8 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
             val current = uiState.value.wellnessEntry
             repository.upsertWellness(
                 dateEpochDay = LocalDate.now().toEpochDay(),
-                moodIndex = moodIndex,
-                sleepHours = current?.sleepHours ?: 7f
+                moodIndex    = moodIndex,
+                sleepHours   = current?.sleepHours ?: 7f
             )
         }
     }
@@ -138,34 +143,35 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
             val current = uiState.value.wellnessEntry
             repository.upsertWellness(
                 dateEpochDay = LocalDate.now().toEpochDay(),
-                moodIndex = current?.moodIndex ?: 2,
-                sleepHours = hours
+                moodIndex    = current?.moodIndex ?: 2,
+                sleepHours   = hours
             )
         }
     }
 
-    // Helper: check if a habit is completed for a given epoch day
+    // ── Helpers used by the UI ────────────────────────────────────────────────
+
     fun isCompleted(state: HabitTrackerUiState, habitId: Long, epochDay: Long): Boolean =
         state.completions.any { it.habitId == habitId && it.dateEpochDay == epochDay && it.isCompleted }
 
-    // Helper: get completion % for a day (0..1f)
     fun getDayProgress(state: HabitTrackerUiState, epochDay: Long): Float {
         if (state.totalHabits == 0) return 0f
         val count = state.dailyCounts.find { it.dateEpochDay == epochDay }?.count ?: 0
-        return (count.toFloat() / state.totalHabits.toFloat()).coerceIn(0f, 1f)
+        return (count.toFloat() / state.totalHabits).coerceIn(0f, 1f)
     }
+
+    // ── Seed ──────────────────────────────────────────────────────────────────
 
     private suspend fun seedDefaultHabitsIfEmpty() {
         repository.allHabits.first().let { habits ->
             if (habits.isEmpty()) {
-                val defaults = listOf(
+                listOf(
                     "Morning Workout" to "#E11D48",
-                    "Read 30 min" to "#7C3AED",
-                    "Meditate" to "#0891B2",
-                    "Drink 2L Water" to "#059669",
-                    "No Sugar" to "#D97706"
-                )
-                defaults.forEach { (name, color) -> repository.addHabit(name, color) }
+                    "Read 30 min"     to "#7C3AED",
+                    "Meditate"        to "#0891B2",
+                    "Drink 2L Water"  to "#059669",
+                    "No Sugar"        to "#D97706"
+                ).forEach { (name, color) -> repository.addHabit(name, color) }
             }
         }
     }

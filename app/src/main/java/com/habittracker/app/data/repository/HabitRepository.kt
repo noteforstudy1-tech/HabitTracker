@@ -43,8 +43,8 @@ class HabitRepository(
 
     val allHabits: Flow<List<Habit>> = habitDao.getAllHabits()
 
-    suspend fun addHabit(name: String, colorHex: String) {
-        habitDao.insertHabit(Habit(name = name, colorHex = colorHex))
+    suspend fun addHabit(name: String, colorHex: String, frequencyType: String = "DAILY", customDays: String = "1,2,3,4,5,6,7") {
+        habitDao.insertHabit(Habit(name = name, colorHex = colorHex, frequencyType = frequencyType, customDays = customDays))
     }
 
     suspend fun updateHabit(habit: Habit) {
@@ -80,5 +80,23 @@ class HabitRepository(
 
     suspend fun upsertWellness(dateEpochDay: Long, moodIndex: Int, sleepHours: Float) {
         wellnessDao.upsertWellness(WellnessEntry(dateEpochDay, moodIndex, sleepHours))
+    }
+
+    // ── Backup / Export Support ───────────────────────────────────────────────
+
+    fun getAllCompletions(): Flow<List<HabitCompletion>> =
+        completionDao.getCompletionsInRange(0, Long.MAX_VALUE)
+
+    fun getAllWellness(): Flow<List<WellnessEntry>> =
+        wellnessDao.getWellnessInRange(0, Long.MAX_VALUE)
+
+    suspend fun importBackup(data: com.habittracker.app.data.utils.ImportedData) {
+        habitDao.clearHabits()
+        completionDao.clearCompletions()
+        wellnessDao.clearWellness()
+
+        data.habits.forEach { habitDao.insertHabit(it) }
+        data.completions.forEach { completionDao.upsertCompletion(it) }
+        data.wellness.forEach { wellnessDao.upsertWellness(it) }
     }
 }

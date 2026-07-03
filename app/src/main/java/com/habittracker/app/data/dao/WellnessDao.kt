@@ -15,4 +15,7 @@ interface WellnessDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertWellness(entry: WellnessEntry)
+
+    @Query("DELETE FROM wellness_entries")
+    suspend fun clearWellness()
 }

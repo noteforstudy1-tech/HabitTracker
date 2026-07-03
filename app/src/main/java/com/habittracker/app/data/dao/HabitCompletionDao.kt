@@ -44,6 +44,9 @@ interface HabitCompletionDao {
         )
     """)
     suspend fun isCompleted(habitId: Long, dateEpochDay: Long): Boolean
+
+    @Query("DELETE FROM habit_completions")
+    suspend fun clearCompletions()
 }
 
 data class DailyCount(

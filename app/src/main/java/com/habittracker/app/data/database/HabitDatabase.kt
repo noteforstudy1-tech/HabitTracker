@@ -13,7 +13,7 @@ import com.habittracker.app.data.model.UserProfile
 
 @Database(
     entities = [Habit::class, HabitCompletion::class, WellnessEntry::class, UserProfile::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class HabitDatabase : RoomDatabase() {

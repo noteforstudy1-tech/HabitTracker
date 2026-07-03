@@ -22,7 +22,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -118,6 +117,7 @@ fun HabitRow(
     isCompleted: (LocalDate) -> Boolean,
     onToggle: (LocalDate) -> Unit,
     onEditClick: () -> Unit,
+    isScheduled: (LocalDate) -> Boolean,
     today: LocalDate
 ) {
     val haptic = LocalHapticFeedback.current
@@ -174,6 +174,7 @@ fun HabitRow(
             weekDates.forEach { date ->
                 val done = isCompleted(date)
                 val isFuture = date.isAfter(today)
+                val scheduled = isScheduled(date)
                 Box(
                     modifier = Modifier.weight(1f),
                     contentAlignment = Alignment.Center
@@ -181,9 +182,10 @@ fun HabitRow(
                     CheckboxCell(
                         checked = done,
                         isFuture = isFuture,
+                        isScheduled = scheduled,
                         accentColor = accentColor,
                         onClick = {
-                            if (!isFuture) {
+                            if (!isFuture && scheduled) {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 onToggle(date)
                             }
@@ -199,11 +201,13 @@ fun HabitRow(
 fun CheckboxCell(
     checked: Boolean,
     isFuture: Boolean,
+    isScheduled: Boolean,
     accentColor: Color,
     onClick: () -> Unit
 ) {
     val bgColor by animateColorAsState(
         targetValue = when {
+            !isScheduled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.05f)
             checked -> accentColor.copy(alpha = 0.3f)
             isFuture -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
             else -> Color.Transparent
@@ -213,6 +217,7 @@ fun CheckboxCell(
     )
     val borderCol by animateColorAsState(
         targetValue = when {
+            !isScheduled -> MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
             checked -> accentColor
             isFuture -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
             else -> MaterialTheme.colorScheme.outline
@@ -226,10 +231,17 @@ fun CheckboxCell(
             .clip(RoundedCornerShape(8.dp))
             .background(bgColor)
             .border(1.dp, borderCol, RoundedCornerShape(8.dp))
-            .clickable(enabled = !isFuture, onClick = onClick),
+            .clickable(enabled = !isFuture && isScheduled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        if (checked) {
+        if (!isScheduled) {
+            Text(
+                text = "–",
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold
+            )
+        } else if (checked) {
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Completed",

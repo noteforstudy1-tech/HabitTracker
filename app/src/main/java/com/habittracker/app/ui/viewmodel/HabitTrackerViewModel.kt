@@ -101,17 +101,27 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
             val weeklyCounts = habitTriple.third
             val totalHabits = habits.size
 
-            // Calculate weekly average
-            val weeklyAvg = if (totalHabits > 0) {
+            // Calculate weekly average based on scheduled frequencies
+            var totalScheduledWeek = 0
+            for (i in 0..6) {
+                val d = weekStart.plusDays(i.toLong())
+                totalScheduledWeek += habits.count { isScheduledForDate(it, d) }
+            }
+            val weeklyAvg = if (totalScheduledWeek > 0) {
                 val totalCompletions = weeklyCounts.sumOf { it.count }
-                (totalCompletions.toFloat() / (totalHabits * 7)) * 100f
+                (totalCompletions.toFloat() / totalScheduledWeek) * 100f
             } else 0f
 
-            // Calculate monthly average
-            val monthlyAvg = if (totalHabits > 0) {
-                val totalDays = month.lengthOfMonth()
+            // Calculate monthly average based on scheduled frequencies
+            var totalScheduledMonth = 0
+            val totalDays = month.lengthOfMonth()
+            for (i in 1..totalDays) {
+                val d = month.atDay(i)
+                totalScheduledMonth += habits.count { isScheduledForDate(it, d) }
+            }
+            val monthlyAvg = if (totalScheduledMonth > 0) {
                 val totalCompletions = monthlyCounts.sumOf { it.count }
-                (totalCompletions.toFloat() / (totalHabits * totalDays)) * 100f
+                (totalCompletions.toFloat() / totalScheduledMonth) * 100f
             } else 0f
 
             HabitTrackerUiState(
@@ -159,9 +169,9 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
 
     // ── Habit Actions (CRUD) ────────────────────────────────────────────────
 
-    fun addHabit(name: String, colorHex: String = "#7C3AED") {
+    fun addHabit(name: String, colorHex: String = "#7C3AED", frequencyType: String = "DAILY", customDays: String = "1,2,3,4,5,6,7") {
         viewModelScope.launch {
-            repository.addHabit(name.trim(), colorHex)
+            repository.addHabit(name.trim(), colorHex, frequencyType, customDays)
             updateStreakInDatabase()
         }
     }
@@ -226,17 +236,25 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
     fun isCompleted(state: HabitTrackerUiState, habitId: Long, epochDay: Long): Boolean =
         state.completions.any { it.habitId == habitId && it.dateEpochDay == epochDay && it.isCompleted }
 
+    fun isScheduledForDate(habit: Habit, date: LocalDate): Boolean {
+        if (habit.frequencyType == "DAILY") return true
+        val dayNum = date.dayOfWeek.value // 1 = Monday, 7 = Sunday
+        val daysList = habit.customDays.split(",").mapNotNull { it.trim().toIntOrNull() }
+        return dayNum in daysList
+    }
+
     fun getDayProgress(state: HabitTrackerUiState, epochDay: Long): Float {
-        if (state.totalHabits == 0) return 0f
+        val date = LocalDate.ofEpochDay(epochDay)
+        val totalScheduled = state.habits.count { isScheduledForDate(it, date) }
+        if (totalScheduled == 0) return 0f
         val count = state.dailyCounts.find { it.dateEpochDay == epochDay }?.count ?: 0
-        return (count.toFloat() / state.totalHabits).coerceIn(0f, 1f)
+        return (count.toFloat() / totalScheduled).coerceIn(0f, 1f)
     }
 
     // Calculates the current streak of 100% completions
     private suspend fun calculateCurrentStreak(): Int {
         val habitsList = repository.allHabits.first()
         if (habitsList.isEmpty()) return 0
-        val total = habitsList.size
 
         val today = LocalDate.now()
         val startRange = today.minusDays(180).toEpochDay()
@@ -247,16 +265,23 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
         var checkDate = today
 
         // If today is not fully completed, check if yesterday was
+        val todayScheduled = habitsList.count { isScheduledForDate(it, today) }
         val todayCount = counts.find { it.dateEpochDay == today.toEpochDay() }?.count ?: 0
-        val todayCompleted = todayCount == total
+        val todayCompleted = if (todayScheduled > 0) todayCount == todayScheduled else true
 
         if (!todayCompleted) {
             checkDate = today.minusDays(1)
         }
 
         while (true) {
+            val checkScheduled = habitsList.count { isScheduledForDate(it, checkDate) }
+            // If nothing is scheduled on this day, we skip it without breaking the streak!
+            if (checkScheduled == 0) {
+                checkDate = checkDate.minusDays(1)
+                continue
+            }
             val checkCount = counts.find { it.dateEpochDay == checkDate.toEpochDay() }?.count ?: 0
-            if (checkCount == total) {
+            if (checkCount == checkScheduled) {
                 streak++
                 checkDate = checkDate.minusDays(1)
             } else {
@@ -269,5 +294,27 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
     private suspend fun updateStreakInDatabase() {
         val streak = calculateCurrentStreak()
         repository.updateStreak(streak)
+    }
+
+    // ── Backup Actions ────────────────────────────────────────────────────────
+
+    fun importBackup(jsonString: String, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val data = com.habittracker.app.data.utils.BackupHelper.parseImportedData(jsonString)
+            if (data != null) {
+                repository.importBackup(data)
+                updateStreakInDatabase()
+                onComplete(true)
+            } else {
+                onComplete(false)
+            }
+        }
+    }
+
+    suspend fun getExportJsonString(): String {
+        val habits = repository.allHabits.first()
+        val completions = repository.getAllCompletions().first()
+        val wellness = repository.getAllWellness().first()
+        return com.habittracker.app.data.utils.BackupHelper.exportDataToJson(habits, completions, wellness)
     }
 }

@@ -58,5 +58,12 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
+    // WorkManager (Reminders)
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+
+    // Glance (Home Screen Widget)
+    implementation("androidx.glance:glance-appwidget:1.1.0")
+    implementation("androidx.glance:glance-material3:1.1.0")
+
     debugImplementation(libs.androidx.ui.tooling)
 }

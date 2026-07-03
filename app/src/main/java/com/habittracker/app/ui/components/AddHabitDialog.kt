@@ -9,12 +9,14 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,11 +28,28 @@ import com.habittracker.app.ui.theme.*
 fun HabitDialog(
     habitToEdit: Habit? = null,
     onDismiss: () -> Unit,
-    onConfirm: (name: String, colorHex: String) -> Unit,
+    onConfirm: (name: String, colorHex: String, frequencyType: String, customDays: String) -> Unit,
     onDelete: (() -> Unit)? = null
 ) {
     var habitName by remember { mutableStateOf(habitToEdit?.name ?: "") }
     var selectedColor by remember { mutableStateOf(habitToEdit?.colorHex ?: HabitAccentColors[0]) }
+    var frequencyType by remember { mutableStateOf(habitToEdit?.frequencyType ?: "DAILY") }
+
+    // Init custom days list
+    val selectedDays = remember {
+        val initialList = habitToEdit?.customDays?.split(",")?.mapNotNull { it.trim().toIntOrNull() } ?: listOf(1, 2, 3, 4, 5, 6, 7)
+        mutableStateListOf<Int>().apply { addAll(initialList) }
+    }
+
+    val weekDaysMap = listOf(
+        1 to "M",
+        2 to "T",
+        3 to "W",
+        4 to "T",
+        5 to "F",
+        6 to "S",
+        7 to "S"
+    )
 
     Dialog(onDismissRequest = onDismiss) {
         Column(
@@ -93,7 +112,10 @@ fun HabitDialog(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
-                    if (habitName.isNotBlank()) onConfirm(habitName, selectedColor)
+                    if (habitName.isNotBlank()) {
+                        val daysString = if (frequencyType == "DAILY") "1,2,3,4,5,6,7" else selectedDays.sorted().joinToString(",")
+                        onConfirm(habitName, selectedColor, frequencyType, daysString)
+                    }
                 }),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = AccentPurple,
@@ -104,7 +126,75 @@ fun HabitDialog(
                 )
             )
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
+
+            // Frequency Selector
+            Text(
+                text = "Frequency",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Daily option
+                FilterChip(
+                    selected = frequencyType == "DAILY",
+                    onClick = { frequencyType = "DAILY" },
+                    label = { Text("Daily") }
+                )
+                // Specific days option
+                FilterChip(
+                    selected = frequencyType == "SPECIFIC_DAYS",
+                    onClick = { frequencyType = "SPECIFIC_DAYS" },
+                    label = { Text("Specific Days") }
+                )
+            }
+
+            // Render day selector if CUSTOM / SPECIFIC_DAYS is selected
+            if (frequencyType == "SPECIFIC_DAYS") {
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    weekDaysMap.forEach { (dayInt, label) ->
+                        val isSelected = selectedDays.contains(dayInt)
+                        val activeColor = try { Color(android.graphics.Color.parseColor(selectedColor)) } catch (e: Exception) { AccentPurple }
+                        val chipBg = if (isSelected) activeColor.copy(alpha = 0.3f) else Color.Transparent
+                        val chipBorder = if (isSelected) activeColor else MaterialTheme.colorScheme.outline
+
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(chipBg)
+                                .border(width = 1.dp, color = chipBorder, shape = RoundedCornerShape(6.dp))
+                                .clickable {
+                                    if (isSelected) {
+                                        if (selectedDays.size > 1) { // Require at least 1 day selected
+                                            selectedDays.remove(dayInt)
+                                        }
+                                    } else {
+                                        selectedDays.add(dayInt)
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) activeColor else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(18.dp))
 
             // Color picker label
             Text(
@@ -112,7 +202,7 @@ fun HabitDialog(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
 
             // 8-color grid selection
             Row(
@@ -136,7 +226,7 @@ fun HabitDialog(
                 }
             }
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(24.dp))
 
             // Actions
             Row(
@@ -152,7 +242,12 @@ fun HabitDialog(
                     Text("Cancel")
                 }
                 Button(
-                    onClick = { if (habitName.isNotBlank()) onConfirm(habitName, selectedColor) },
+                    onClick = {
+                        if (habitName.isNotBlank()) {
+                            val daysString = if (frequencyType == "DAILY") "1,2,3,4,5,6,7" else selectedDays.sorted().joinToString(",")
+                            onConfirm(habitName, selectedColor, frequencyType, daysString)
+                        }
+                    },
                     modifier = Modifier.weight(1f),
                     enabled = habitName.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(

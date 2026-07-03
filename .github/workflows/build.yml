@@ -5,7 +5,7 @@ on:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
-  workflow_dispatch:   # ← also allows manual trigger from the GitHub UI
+  workflow_dispatch: # allows manual trigger from the GitHub UI
 
 jobs:
   build:
@@ -25,7 +25,20 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      # 3. Cache Gradle packages to speed up future builds
+      # 3. Set up Android SDK
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      # 4. Accept all Android SDK licenses (prevents build failures)
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses || true
+
+      # 5. Install required SDK components
+      - name: Install SDK components
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+
+      # 6. Cache Gradle packages
       - name: Cache Gradle packages
         uses: actions/cache@v4
         with:
@@ -36,18 +49,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      # 4. Grant execute permission to Gradle wrapper
+      # 7. Grant execute permission to Gradle wrapper
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # 5. Build the debug APK
+      # 8. Build the debug APK
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
 
-      # 6. Upload the APK so you can download it from GitHub Actions
+      # 9. Upload the APK as a downloadable artifact
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: HabitTracker-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 14   # keeps the APK for 2 weeks
+          retention-days: 14
+

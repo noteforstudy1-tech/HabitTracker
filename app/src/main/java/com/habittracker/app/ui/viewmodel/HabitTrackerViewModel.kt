@@ -33,6 +33,20 @@ data class HabitTrackerUiState(
     val monthlyAverage: Float = 0f
 )
 
+private data class HabitData(
+    val habits: List<Habit>,
+    val completions: List<HabitCompletion>,
+    val dailyCounts: List<DailyCount>
+)
+
+private data class ContextData(
+    val profile: UserProfile?,
+    val month: YearMonth,
+    val weekStart: LocalDate,
+    val selectedDate: LocalDate,
+    val wellness: WellnessEntry?
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class HabitTrackerViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -70,7 +84,7 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
                 repository.getCompletionsInRange(startDay, endDay),
                 repository.getDailyCompletionCounts(startDay, endDay)
             ) { habits, completions, counts ->
-                Triple(habits, completions, counts)
+                HabitData(habits, completions, counts)
             }
         }
 
@@ -86,25 +100,32 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
             repository.getWellnessEntry(date.toEpochDay())
         }
 
-        // ── Combine everything ────────────
-        uiState = combine(
-            habitDataFlow,
-            monthlyCountsFlow,
-            wellnessFlow,
+        // ── Flow: Context/Meta details group combine (5 flows max) ──────────
+        val contextDataFlow = combine(
             repository.userProfile,
             _selectedMonth,
             _selectedWeekStart,
-            _selectedDate
-        ) { habitTriple, monthlyCounts, wellness, profile, month, weekStart, selectedDate ->
-            val habits = habitTriple.first
-            val completions = habitTriple.second
-            val weeklyCounts = habitTriple.third
+            _selectedDate,
+            wellnessFlow
+        ) { profile, month, weekStart, selectedDate, wellness ->
+            ContextData(profile, month, weekStart, selectedDate, wellness)
+        }
+
+        // ── Combine everything: only 3 flows (well within limit) ───────────
+        uiState = combine(
+            habitDataFlow,
+            monthlyCountsFlow,
+            contextDataFlow
+        ) { habitData, monthlyCounts, ctx ->
+            val habits = habitData.habits
+            val completions = habitData.completions
+            val weeklyCounts = habitData.dailyCounts
             val totalHabits = habits.size
 
             // Calculate weekly average based on scheduled frequencies
             var totalScheduledWeek = 0
             for (i in 0..6) {
-                val d = weekStart.plusDays(i.toLong())
+                val d = ctx.weekStart.plusDays(i.toLong())
                 totalScheduledWeek += habits.count { isScheduledForDate(it, d) }
             }
             val weeklyAvg = if (totalScheduledWeek > 0) {
@@ -114,9 +135,9 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
 
             // Calculate monthly average based on scheduled frequencies
             var totalScheduledMonth = 0
-            val totalDays = month.lengthOfMonth()
+            val totalDays = ctx.month.lengthOfMonth()
             for (i in 1..totalDays) {
-                val d = month.atDay(i)
+                val d = ctx.month.atDay(i)
                 totalScheduledMonth += habits.count { isScheduledForDate(it, d) }
             }
             val monthlyAvg = if (totalScheduledMonth > 0) {
@@ -128,13 +149,13 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
                 habits = habits,
                 completions = completions,
                 dailyCounts = weeklyCounts,
-                wellnessEntry = wellness,
-                selectedMonth = month,
-                selectedWeekStart = weekStart,
-                selectedDate = selectedDate,
+                wellnessEntry = ctx.wellness,
+                selectedMonth = ctx.month,
+                selectedWeekStart = ctx.weekStart,
+                selectedDate = ctx.selectedDate,
                 today = LocalDate.now(),
                 totalHabits = totalHabits,
-                userProfile = profile,
+                userProfile = ctx.profile,
                 weeklyAverage = weeklyAvg,
                 monthlyAverage = monthlyAvg
             )

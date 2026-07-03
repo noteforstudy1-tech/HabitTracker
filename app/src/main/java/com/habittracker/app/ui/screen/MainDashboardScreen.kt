@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.habittracker.app.data.model.Habit
 import com.habittracker.app.ui.components.*
 import com.habittracker.app.ui.theme.*
@@ -39,7 +40,7 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val context = LocalContext.current
@@ -288,13 +289,13 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                     ) {
                         Text(
                             text = "made by raghav",
-                            fontSize = 10.sp,
+                            fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "aham brahmasmi",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             fontStyle = FontStyle.Italic,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -359,6 +360,8 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                         Spacer(Modifier.width(8.dp))
 
                         // Active Habits count badge
+                        val activeHabitCount = state.habits.size
+                        val activeBadgeText = if (activeHabitCount == 1) "1 Active Habit" else "$activeHabitCount Active Habits"
                         Box(
                             modifier = Modifier
                                 .background(AccentPurple.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
@@ -366,7 +369,7 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                                 .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             Text(
-                                text = "💪 ${state.habits.size} habits",
+                                text = "💪 $activeBadgeText",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = AccentPurpleLight

@@ -20,9 +20,9 @@ import java.time.temporal.TemporalAdjusters
 
 data class HabitTrackerUiState(
     val habits: List<Habit> = emptyList(),
-    val completions: List<HabitCompletion> = emptyList(),
-    val dailyCounts: List<DailyCount> = emptyList(),
-    val wellnessEntry: WellnessEntry? = null,
+    val completions: List<HabitCompletion> = emptyList(), // Selected week completions
+    val dailyCounts: List<DailyCount> = emptyList(),       // Selected week daily completion counts
+    val wellnessEntry: WellnessEntry? = null,             // Wellness check-in for selectedDate
     val selectedMonth: YearMonth = YearMonth.now(),
     val selectedWeekStart: LocalDate = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)),
     val selectedDate: LocalDate = LocalDate.now(),
@@ -30,7 +30,11 @@ data class HabitTrackerUiState(
     val totalHabits: Int = 0,
     val userProfile: UserProfile? = null,
     val weeklyAverage: Float = 0f,
-    val monthlyAverage: Float = 0f
+    val monthlyAverage: Float = 0f,
+    
+    // Analytics outputs loaded dynamically from Room
+    val historicalCompletions: List<HabitCompletion> = emptyList(),
+    val historicalWellness: List<WellnessEntry> = emptyList()
 )
 
 private data class HabitData(
@@ -111,12 +115,21 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
             ContextData(profile, month, weekStart, selectedDate, wellness)
         }
 
-        // ── Combine everything: only 3 flows (well within limit) ───────────
+        // ── Flows for 120-day historical analytics ──────────────────────────
+        val startRangeDay = LocalDate.now().minusDays(120).toEpochDay()
+        val endRangeDay = LocalDate.now().toEpochDay()
+
+        val historicalCompletionsFlow = repository.getCompletionsInRange(startRangeDay, endRangeDay)
+        val historicalWellnessFlow = repository.getWellnessInRange(startRangeDay, endRangeDay)
+
+        // ── Combine everything: exactly 5 flows combined at top level ──────
         uiState = combine(
             habitDataFlow,
             monthlyCountsFlow,
-            contextDataFlow
-        ) { habitData, monthlyCounts, ctx ->
+            contextDataFlow,
+            historicalCompletionsFlow,
+            historicalWellnessFlow
+        ) { habitData, monthlyCounts, ctx, histCompletions, histWellness ->
             val habits = habitData.habits
             val completions = habitData.completions
             val weeklyCounts = habitData.dailyCounts
@@ -157,7 +170,9 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
                 totalHabits = totalHabits,
                 userProfile = ctx.profile,
                 weeklyAverage = weeklyAvg,
-                monthlyAverage = monthlyAvg
+                monthlyAverage = monthlyAvg,
+                historicalCompletions = histCompletions,
+                historicalWellness = histWellness
             )
         }.stateIn(
             scope = viewModelScope,
@@ -296,7 +311,6 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
 
         while (true) {
             val checkScheduled = habitsList.count { isScheduledForDate(it, checkDate) }
-            // If nothing is scheduled on this day, we skip it without breaking the streak!
             if (checkScheduled == 0) {
                 checkDate = checkDate.minusDays(1)
                 continue

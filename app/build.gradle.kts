@@ -61,6 +61,9 @@ dependencies {
     // WorkManager (Reminders)
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
+    // Lifecycle Compose (collectAsStateWithLifecycle)
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.2")
+
     // Glance (Home Screen Widget)
     implementation("androidx.glance:glance-appwidget:1.1.0")
     implementation("androidx.glance:glance-material3:1.1.0")

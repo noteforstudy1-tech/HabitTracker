@@ -7,6 +7,10 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch: # allows manual trigger from the GitHub UI
 
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true   # suppress Node20 deprecation warnings
+  JAVA_TOOL_OPTIONS: "-Xmx4g"                      # give Gradle enough heap on CI
+
 jobs:
   build:
     name: Build APK

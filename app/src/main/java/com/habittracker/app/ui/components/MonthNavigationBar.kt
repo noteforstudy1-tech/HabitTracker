@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.habittracker.app.ui.theme.*
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -39,13 +41,18 @@ fun MonthNavigationBar(
 ) {
     val months = buildList {
         val now = YearMonth.now()
-        for (i in -3..3) add(now.plusMonths(i.toLong()))
+        for (i in -3..3) {
+            add(now.plusMonths(i.toLong()))
+        }
     }
 
+    // Glass container at the bottom
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SurfaceVariantDark)
+            .background(MaterialTheme.colorScheme.surface)
+            .border(width = 1.dp, color = MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            .padding(vertical = 8.dp)
     ) {
         // Month scroll strip
         Row(
@@ -54,50 +61,66 @@ fun MonthNavigationBar(
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onPrevMonth, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.ChevronLeft, contentDescription = "Prev", tint = TextSecondary)
+            IconButton(
+                onClick = onPrevMonth,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ChevronLeft,
+                    contentDescription = "Previous Month",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             Row(
                 modifier = Modifier
                     .weight(1f)
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.Center
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 months.forEach { month ->
                     val isSelected = month == selectedMonth
                     val bgColor by animateColorAsState(
-                        targetValue = if (isSelected) AccentPurple else SurfaceVariantDark,
+                        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
                         animationSpec = spring(stiffness = Spring.StiffnessMedium),
                         label = "month_bg"
                     )
+                    val borderCol = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                    val textColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+
                     Box(
                         modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(10.dp))
                             .background(bgColor)
-                            .border(
-                                width = 1.dp,
-                                color = if (isSelected) AccentPurple else BorderColor,
-                                shape = RoundedCornerShape(8.dp)
-                            )
+                            .border(width = 1.dp, color = borderCol, shape = RoundedCornerShape(10.dp))
                             .clickable { onWeekSelected(month.atDay(1)) }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = month.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
+                            text = month.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()) + " " + month.year.toString().takeLast(2),
                             fontSize = 12.sp,
-                            color = if (isSelected) TextPrimary else TextSecondary
+                            color = textColor,
+                            style = MaterialTheme.typography.titleMedium
                         )
                     }
                 }
             }
 
-            IconButton(onClick = onNextMonth, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.ChevronRight, contentDescription = "Next", tint = TextSecondary)
+            IconButton(
+                onClick = onNextMonth,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = "Next Month",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
+
+        Spacer(modifier = Modifier.height(4.dp))
 
         // Week navigation within selected month
         WeekNavigationRow(
@@ -114,7 +137,7 @@ private fun WeekNavigationRow(
     currentWeekStart: LocalDate,
     onWeekSelected: (LocalDate) -> Unit
 ) {
-    // Generate all week starts in the selected month
+    // Generate all week starts in the selected month in chronological order
     val weeks = buildList {
         var day = selectedMonth.atDay(1).with(
             java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY)
@@ -126,37 +149,41 @@ private fun WeekNavigationRow(
         }
     }
 
+    val dateFormatter = DateTimeFormatter.ofPattern("d MMM")
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         weeks.forEach { weekStart ->
             val weekEnd = weekStart.plusDays(6)
             val isSelected = weekStart == currentWeekStart
             val bgColor by animateColorAsState(
-                targetValue = if (isSelected) AccentCyan.copy(alpha = 0.15f) else SurfaceDark,
+                targetValue = if (isSelected) AccentCyan.copy(alpha = 0.25f) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f),
                 label = "week_bg"
             )
             val borderCol by animateColorAsState(
-                targetValue = if (isSelected) AccentCyan else BorderColor,
+                targetValue = if (isSelected) AccentCyan else MaterialTheme.colorScheme.outline,
                 label = "week_border"
             )
+            val textColor = if (isSelected) AccentCyan else MaterialTheme.colorScheme.onSurfaceVariant
 
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(RoundedCornerShape(8.dp))
                     .background(bgColor)
-                    .border(1.dp, borderCol, RoundedCornerShape(6.dp))
+                    .border(width = 1.dp, color = borderCol, shape = RoundedCornerShape(8.dp))
                     .clickable { onWeekSelected(weekStart) }
-                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text(
-                    text = "${weekStart.dayOfMonth}–${weekEnd.dayOfMonth}",
+                    text = "${weekStart.format(dateFormatter)} – ${weekEnd.format(dateFormatter)}",
                     fontSize = 11.sp,
-                    color = if (isSelected) AccentCyan else TextSecondary
+                    color = textColor,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
         }

@@ -11,17 +11,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.habittracker.app.data.model.WellnessEntry
 import com.habittracker.app.ui.theme.*
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 private val moodLabels  = listOf("Awful", "Bad", "Okay", "Good", "Great")
 private val moodEmojis  = listOf("😞", "😕", "😐", "🙂", "😄")
@@ -29,78 +35,106 @@ private val moodEmojis  = listOf("😞", "😕", "😐", "🙂", "😄")
 @Composable
 fun WellnessSection(
     wellness: WellnessEntry?,
+    selectedDate: LocalDate,
     onMoodChange: (Int) -> Unit,
     onSleepChange: (Float) -> Unit
 ) {
-    Column(
+    val haptic = LocalHapticFeedback.current
+    val dateLabel = remember(selectedDate) {
+        selectedDate.format(DateTimeFormatter.ofPattern("d MMM yyyy"))
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SurfaceDark, RoundedCornerShape(16.dp))
-            .padding(16.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(width = 1.dp, color = MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(20.dp))
     ) {
-        Text(
-            text = "Overall Wellness",
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = TextPrimary
-        )
-        Text(
-            text = "Today's check-in",
-            fontSize = 11.sp,
-            color = TextSecondary
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        // ── Mood Row ──────────────────────────────────────────────────────────
-        Text("Mood", fontSize = 12.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
-        Spacer(Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+        Column(
+            modifier = Modifier.padding(20.dp)
         ) {
-            moodEmojis.forEachIndexed { index, emoji ->
-                MoodChip(
-                    emoji = emoji,
-                    label = moodLabels[index],
-                    color = MoodColors[index],
-                    selected = wellness?.moodIndex == index,
-                    onClick = { onMoodChange(index) }
+            Text(
+                text = "Overall Wellness",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Check-in for $dateLabel",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(18.dp))
+
+            // ── Mood Row ──────────────────────────────────────────────────────────
+            Text(
+                text = "Mood",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                moodEmojis.forEachIndexed { index, emoji ->
+                    MoodChip(
+                        emoji = emoji,
+                        label = moodLabels[index],
+                        color = MoodColors[index],
+                        selected = wellness?.moodIndex == index,
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onMoodChange(index)
+                        }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            // ── Sleep Row ─────────────────────────────────────────────────────────
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Bedtime,
+                    contentDescription = null,
+                    tint = AccentCyan,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "Sleep: ",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "${wellness?.sleepHours ?: 7.0f} hrs",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = AccentCyan,
+                    fontWeight = FontWeight.Bold
                 )
             }
-        }
 
-        Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(12.dp))
 
-        // ── Sleep Row ─────────────────────────────────────────────────────────
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.Default.Bedtime,
-                contentDescription = null,
-                tint = AccentCyan,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(Modifier.width(6.dp))
-            Text("Sleep", fontSize = 12.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.width(6.dp))
-            Text(
-                text = "${wellness?.sleepHours ?: 7f}h",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = AccentCyan
+            // Sleep Selector Grid (4.0h to 12.0h in 0.5h steps)
+            val sleepOptions = (8..24).map { it * 0.5f }
+            SleepSelector(
+                options = sleepOptions,
+                selected = wellness?.sleepHours ?: 7.0f,
+                onSelect = { hour ->
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onSleepChange(hour)
+                }
             )
         }
-
-        Spacer(Modifier.height(10.dp))
-
-        // Sleep selector: 4h to 12h in 0.5h steps shown as chips
-        val sleepOptions = (8..24).map { it * 0.5f } // 4.0 to 12.0
-        SleepSelector(
-            options = sleepOptions,
-            selected = wellness?.sleepHours ?: 7f,
-            onSelect = onSleepChange
-        )
     }
 }
 
@@ -113,30 +147,35 @@ private fun MoodChip(
     onClick: () -> Unit
 ) {
     val bgColor by animateColorAsState(
-        targetValue = if (selected) color.copy(alpha = 0.25f) else SurfaceVariantDark,
+        targetValue = if (selected) color.copy(alpha = 0.25f) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "mood_bg"
     )
     val borderColor by animateColorAsState(
-        targetValue = if (selected) color else BorderColor,
+        targetValue = if (selected) color else MaterialTheme.colorScheme.outline,
         label = "mood_border"
     )
+    val scale = if (selected) 1.05f else 1.0f
 
     Column(
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(bgColor)
-            .border(1.5.dp, borderColor, RoundedCornerShape(12.dp))
+            .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .padding(horizontal = 10.dp, vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = emoji, fontSize = 22.sp)
-        Spacer(Modifier.height(2.dp))
+        Text(
+            text = emoji,
+            fontSize = 24.sp
+        )
+        Spacer(Modifier.height(4.dp))
         Text(
             text = label,
-            fontSize = 9.sp,
-            color = if (selected) color else TextHint
+            fontSize = 10.sp,
+            color = if (selected) color else MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
         )
     }
 }
@@ -147,11 +186,11 @@ private fun SleepSelector(
     selected: Float,
     onSelect: (Float) -> Unit
 ) {
-    // Show nicely: 5.0, 5.5, 6.0 ... 12.0
-    val displayOptions = (8..24).map { it * 0.5f }
-    val rows = displayOptions.chunked(6)
+    val rows = options.chunked(6)
 
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
         rows.forEach { rowOptions ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -160,28 +199,29 @@ private fun SleepSelector(
                 rowOptions.forEach { hour ->
                     val isSelected = selected == hour
                     val bgColor by animateColorAsState(
-                        targetValue = if (isSelected) AccentCyan.copy(0.25f) else SurfaceVariantDark,
+                        targetValue = if (isSelected) AccentCyan.copy(0.25f) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f),
                         label = "sleep_bg"
                     )
                     val borderCol by animateColorAsState(
-                        targetValue = if (isSelected) AccentCyan else BorderColor,
+                        targetValue = if (isSelected) AccentCyan else MaterialTheme.colorScheme.outline,
                         label = "sleep_border"
                     )
+
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(8.dp))
                             .background(bgColor)
-                            .border(1.dp, borderCol, RoundedCornerShape(6.dp))
+                            .border(width = 1.dp, color = borderCol, shape = RoundedCornerShape(8.dp))
                             .clickable { onSelect(hour) }
-                            .padding(vertical = 6.dp),
+                            .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        val label = if (hour == hour.toLong().toFloat()) "${hour.toInt()}h" else "${hour}h"
+                        val label = if (hour == hour.toInt().toFloat()) "${hour.toInt()}h" else "${hour}h"
                         Text(
                             text = label,
                             fontSize = 10.sp,
-                            color = if (isSelected) AccentCyan else TextSecondary,
+                            color = if (isSelected) AccentCyan else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                         )
                     }

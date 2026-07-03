@@ -6,13 +6,12 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,7 +19,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,31 +32,45 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun HabitGridHeader(weekDates: List<LocalDate>, today: LocalDate) {
+fun HabitGridHeader(
+    weekDates: List<LocalDate>,
+    today: LocalDate
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SurfaceVariantDark)
-            .padding(vertical = 6.dp)
+            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f))
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        // Habit name column header
+        // Pinned title taking weight 0.32f
         Box(
             modifier = Modifier
-                .width(140.dp)
-                .padding(horizontal = 12.dp),
+                .weight(0.32f)
+                .padding(start = 12.dp, end = 4.dp),
             contentAlignment = Alignment.CenterStart
         ) {
-            Text("Habit", fontSize = 11.sp, color = TextSecondary, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = "Habit",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold
+            )
         }
 
-        // Divider
-        Box(Modifier.width(1.dp).height(24.dp).background(BorderColor))
-
-        // Date column headers (horizontal scroll matches the rows below)
-        Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+        // 7 day headers taking weight 0.68f combined
+        Row(
+            modifier = Modifier.weight(0.68f),
+            horizontalArrangement = Arrangement.SpaceAround
+        ) {
             weekDates.forEach { date ->
                 val isToday = date == today
-                DayHeaderCell(date = date, isToday = isToday)
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    DayHeaderCell(date = date, isToday = isToday)
+                }
             }
         }
     }
@@ -65,34 +81,32 @@ fun DayHeaderCell(date: LocalDate, isToday: Boolean) {
     val dayLetter = date.format(DateTimeFormatter.ofPattern("EEE")).take(1)
     val dayNum = date.dayOfMonth.toString()
 
-    Box(
-        modifier = Modifier
-            .width(48.dp)
-            .padding(horizontal = 4.dp),
-        contentAlignment = Alignment.Center
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = dayLetter,
+            fontSize = 9.sp,
+            color = if (isToday) AccentCyan else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal
+        )
+        Spacer(Modifier.height(2.dp))
+        Box(
+            modifier = Modifier
+                .size(22.dp)
+                .then(
+                    if (isToday) Modifier.background(AccentPurple.copy(alpha = 0.8f), RoundedCornerShape(6.dp))
+                    else Modifier
+                ),
+            contentAlignment = Alignment.Center
+        ) {
             Text(
-                text = dayLetter,
+                text = dayNum,
                 fontSize = 10.sp,
-                color = if (isToday) AccentCyan else TextSecondary
+                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium,
+                color = if (isToday) Color.White else MaterialTheme.colorScheme.onSurface
             )
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .then(
-                        if (isToday) Modifier.background(AccentPurple, RoundedCornerShape(6.dp))
-                        else Modifier
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = dayNum,
-                    fontSize = 11.sp,
-                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isToday) TextPrimary else TextSecondary
-                )
-            }
         }
     }
 }
@@ -103,9 +117,10 @@ fun HabitRow(
     weekDates: List<LocalDate>,
     isCompleted: (LocalDate) -> Boolean,
     onToggle: (LocalDate) -> Unit,
-    onLongPress: () -> Unit,
+    onEditClick: () -> Unit,
     today: LocalDate
 ) {
+    val haptic = LocalHapticFeedback.current
     val accentColor = try {
         Color(android.graphics.Color.parseColor(habit.colorHex))
     } catch (e: Exception) {
@@ -115,47 +130,66 @@ fun HabitRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SurfaceDark)
-            .border(width = 0.5.dp, color = BorderColor),
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+            .border(width = 0.5.dp, color = MaterialTheme.colorScheme.outline),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Pinned habit name
+        // Pinned habit name column: weight 0.32f
         Row(
             modifier = Modifier
-                .width(140.dp)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .weight(0.32f)
+                .clickable { onEditClick() }
+                .padding(horizontal = 10.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(8.dp)
-                    .background(accentColor, RoundedCornerShape(4.dp))
+                    .size(6.dp)
+                    .background(accentColor, RoundedCornerShape(3.dp))
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(6.dp))
             Text(
                 text = habit.name,
                 fontSize = 12.sp,
-                color = TextPrimary,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.SemiBold
             )
         }
 
         // Vertical divider
-        Box(Modifier.width(1.dp).height(44.dp).background(BorderColor))
+        Box(
+            modifier = Modifier
+                .width(1.dp)
+                .height(44.dp)
+                .background(MaterialTheme.colorScheme.outline)
+        )
 
-        // Scrollable checkbox cells
-        Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+        // Checkbox cells: weight 0.68f combined
+        Row(
+            modifier = Modifier.weight(0.68f),
+            horizontalArrangement = Arrangement.SpaceAround
+        ) {
             weekDates.forEach { date ->
                 val done = isCompleted(date)
                 val isFuture = date.isAfter(today)
-                CheckboxCell(
-                    checked = done,
-                    isFuture = isFuture,
-                    accentColor = accentColor,
-                    onClick = { if (!isFuture) onToggle(date) }
-                )
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CheckboxCell(
+                        checked = done,
+                        isFuture = isFuture,
+                        accentColor = accentColor,
+                        onClick = {
+                            if (!isFuture) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onToggle(date)
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -170,27 +204,25 @@ fun CheckboxCell(
 ) {
     val bgColor by animateColorAsState(
         targetValue = when {
-            checked  -> accentColor.copy(alpha = 0.25f)
-            isFuture -> SurfaceVariantDark.copy(alpha = 0.3f)
-            else     -> SurfaceDark
+            checked -> accentColor.copy(alpha = 0.3f)
+            isFuture -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+            else -> Color.Transparent
         },
         animationSpec = spring(stiffness = Spring.StiffnessMedium),
         label = "cell_bg"
     )
     val borderCol by animateColorAsState(
         targetValue = when {
-            checked  -> accentColor
-            isFuture -> BorderColor.copy(alpha = 0.4f)
-            else     -> BorderColor
+            checked -> accentColor
+            isFuture -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+            else -> MaterialTheme.colorScheme.outline
         },
         label = "cell_border"
     )
 
     Box(
         modifier = Modifier
-            .width(48.dp)
-            .height(44.dp)
-            .padding(5.dp)
+            .size(34.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(bgColor)
             .border(1.dp, borderCol, RoundedCornerShape(8.dp))
@@ -202,7 +234,7 @@ fun CheckboxCell(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Completed",
                 tint = accentColor,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(16.dp)
             )
         }
     }

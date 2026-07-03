@@ -1,6 +1,5 @@
 package com.habittracker.app.ui.components
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,22 +19,27 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.habittracker.app.data.model.Habit
 import com.habittracker.app.ui.theme.*
 
 @Composable
-fun AddHabitDialog(
+fun HabitDialog(
+    habitToEdit: Habit? = null,
     onDismiss: () -> Unit,
-    onConfirm: (name: String, colorHex: String) -> Unit
+    onConfirm: (name: String, colorHex: String) -> Unit,
+    onDelete: (() -> Unit)? = null
 ) {
-    var habitName by remember { mutableStateOf("") }
-    var selectedColor by remember { mutableStateOf(HabitAccentColors[0]) }
+    var habitName by remember { mutableStateOf(habitToEdit?.name ?: "") }
+    var selectedColor by remember { mutableStateOf(habitToEdit?.colorHex ?: HabitAccentColors[0]) }
 
     Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(SurfaceDark, RoundedCornerShape(20.dp))
-                .padding(20.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f))
+                .border(width = 1.dp, color = MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(24.dp))
+                .padding(24.dp)
         ) {
             // Title row
             Row(
@@ -43,9 +47,32 @@ fun AddHabitDialog(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("New Habit", color = TextPrimary, style = MaterialTheme.typography.headlineSmall)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = if (habitToEdit == null) "New Habit" else "Edit Habit",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (habitToEdit != null && onDelete != null) {
+                        IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete Habit",
+                                tint = AccentRed,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
                 IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = TextSecondary)
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Dismiss",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
@@ -55,7 +82,13 @@ fun AddHabitDialog(
             OutlinedTextField(
                 value = habitName,
                 onValueChange = { habitName = it },
-                placeholder = { Text("e.g. Morning Workout", color = TextHint, fontSize = 13.sp) },
+                placeholder = {
+                    Text(
+                        text = "e.g. Read 30 min",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        fontSize = 13.sp
+                    )
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -64,21 +97,27 @@ fun AddHabitDialog(
                 }),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = AccentPurple,
-                    unfocusedBorderColor = BorderColor,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                     cursorColor = AccentPurple
                 )
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(20.dp))
 
-            // Color picker
-            Text("Color", color = TextSecondary, fontSize = 12.sp)
-            Spacer(Modifier.height(8.dp))
+            // Color picker label
+            Text(
+                text = "Accent Color",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(10.dp))
+
+            // 8-color grid selection
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 HabitAccentColors.take(8).forEach { hex ->
                     val color = try { Color(android.graphics.Color.parseColor(hex)) } catch (e: Exception) { AccentPurple }
@@ -89,7 +128,7 @@ fun AddHabitDialog(
                             .clip(RoundedCornerShape(8.dp))
                             .background(color)
                             .then(
-                                if (isSelected) Modifier.border(2.dp, TextPrimary, RoundedCornerShape(8.dp))
+                                if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(8.dp))
                                 else Modifier
                             )
                             .clickable { selectedColor = hex }
@@ -97,15 +136,18 @@ fun AddHabitDialog(
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(28.dp))
 
-            // Buttons
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Actions
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 OutlinedButton(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f),
                     border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(width = 1.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
                 ) {
                     Text("Cancel")
                 }
@@ -115,10 +157,10 @@ fun AddHabitDialog(
                     enabled = habitName.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = AccentPurple,
-                        contentColor = TextPrimary
+                        contentColor = Color.White
                     )
                 ) {
-                    Text("Add")
+                    Text(text = if (habitToEdit == null) "Create" else "Save")
                 }
             }
         }

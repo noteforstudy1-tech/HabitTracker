@@ -20,7 +20,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Set up JDK 17 (required by AGP 8.x)
+      # 2. Replace the committed gradlew (which has Windows CRLF endings) with
+      #    the official clean copy straight from Gradle's GitHub — guaranteed LF.
+      - name: Download official clean gradlew
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/gradle/gradle/v8.9.0/gradlew" -o gradlew
+          chmod +x gradlew
+
+      # 3. Set up JDK 17 (required by AGP 8.x)
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -28,20 +35,20 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      # 3. Set up Android SDK
+      # 4. Set up Android SDK
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      # 4. Accept all Android SDK licenses (prevents build failures)
+      # 5. Accept all Android SDK licenses (prevents build failures)
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses || true
 
-      # 5. Install required SDK components
+      # 6. Install required SDK components
       - name: Install SDK components
         run: |
           sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
 
-      # 6. Cache Gradle packages
+      # 7. Cache Gradle packages
       - name: Cache Gradle packages
         uses: actions/cache@v4
         with:
@@ -52,15 +59,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      # 7. Make gradlew executable (chmod + explicit bash invocation avoids
-      #    any remaining CRLF shebang issues on Linux runners)
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
-      # 8. Build the debug APK — using "bash gradlew" instead of "./gradlew"
-      #    so the OS shebang line is never parsed (bypasses CRLF issues)
+      # 8. Build the debug APK
       - name: Build Debug APK
-        run: bash gradlew assembleDebug --stacktrace --no-daemon
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
 
       # 9. Upload the APK as a downloadable artifact
       - name: Upload APK artifact

@@ -52,14 +52,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      # 7. Fix CRLF line endings on gradlew (caused by Windows git config)
-      #    Without this the Linux shell cannot parse the script header
-      - name: Fix gradlew line endings
-        run: sed -i 's/\r$//' gradlew && chmod +x gradlew
+      # 7. Make gradlew executable (chmod + explicit bash invocation avoids
+      #    any remaining CRLF shebang issues on Linux runners)
+      - name: Make gradlew executable
+        run: chmod +x gradlew
 
-      # 8. Build the debug APK
+      # 8. Build the debug APK — using "bash gradlew" instead of "./gradlew"
+      #    so the OS shebang line is never parsed (bypasses CRLF issues)
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
+        run: bash gradlew assembleDebug --stacktrace --no-daemon
 
       # 9. Upload the APK as a downloadable artifact
       - name: Upload APK artifact

@@ -211,33 +211,78 @@ fun HeatmapGrid(
             .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
             .padding(14.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            for (col in 0 until columns) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    for (row in 0 until rows) {
-                        val cellDate = startDate.plusDays((col * rows + row).toLong())
-                        val count    = historicalCounts[cellDate.toEpochDay()] ?: 0
-                        val ratio    = if (totalHabits > 0) count.toFloat() / totalHabits else 0f
-
-                        val cellColor = when {
-                            ratio == 0f  -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            ratio <= 0.3f -> AccentPurple.copy(alpha = 0.30f)
-                            ratio <= 0.6f -> AccentPurple.copy(alpha = 0.65f)
-                            ratio <= 0.9f -> AccentPurple
-                            else          -> AccentCyan
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(cellColor)
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Y-Axis Labels
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(top = 2.dp, end = 6.dp)
+                ) {
+                    listOf("M", "W", "F").forEach { label ->
+                        Text(
+                            text = label,
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.height(16.dp)
                         )
                     }
                 }
+                
+                // Grid
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    for (col in 0 until columns) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            for (row in 0 until rows) {
+                                val cellDate = startDate.plusDays((col * rows + row).toLong())
+                                val count    = historicalCounts[cellDate.toEpochDay()] ?: 0
+                                val ratio    = if (totalHabits > 0) count.toFloat() / totalHabits else 0f
+
+                                val cellColor = when {
+                                    ratio == 0f  -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    ratio <= 0.3f -> AccentPurple.copy(alpha = 0.30f)
+                                    ratio <= 0.6f -> AccentPurple.copy(alpha = 0.65f)
+                                    ratio <= 0.9f -> AccentPurple
+                                    else          -> AccentCyan
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(cellColor)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+            
+            // Legend
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Less", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(modifier = Modifier.width(6.dp))
+                listOf(
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    AccentPurple.copy(alpha = 0.30f),
+                    AccentPurple.copy(alpha = 0.65f),
+                    AccentPurple,
+                    AccentCyan
+                ).forEach { color ->
+                    Box(modifier = Modifier.padding(horizontal = 2.dp).size(10.dp).clip(RoundedCornerShape(2.dp)).background(color))
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("More", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

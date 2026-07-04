@@ -60,6 +60,9 @@ dependencies {
 
     // WorkManager (Reminders)
     implementation("androidx.work:work-runtime-ktx:2.9.0")
+    
+    // Splashscreen
+    implementation("androidx.core:core-splashscreen:1.0.1")
 
     // Lifecycle Compose (collectAsStateWithLifecycle)
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.2")

@@ -54,6 +54,7 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
     var importInputText  by remember { mutableStateOf("") }
     var isEditingName    by remember { mutableStateOf(false) }
     var nameInput        by remember { mutableStateOf("") }
+    var showConfetti     by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.userProfile) {
         nameInput = state.userProfile?.name ?: "Your Name"
@@ -93,6 +94,22 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
         Brush.verticalGradient(listOf(BgGradientStartDark, BgGradientMidDark, BgGradientEndDark))
     else
         Brush.verticalGradient(listOf(BgGradientStartLight, BgGradientMidLight, BgGradientEndLight))
+
+    // ── Confetti Trigger ─────────────────────────────────────────────────────
+    val todayScheduled = remember(state.habits, state.today) {
+        state.habits.count { viewModel.isScheduledForDate(it, state.today) }
+    }
+    val todayDone = state.dailyCounts.find { it.dateEpochDay == state.today.toEpochDay() }?.count ?: 0
+    var hasCelebratedToday by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(todayDone, todayScheduled) {
+        if (todayScheduled > 0 && todayDone == todayScheduled && !hasCelebratedToday) {
+            showConfetti = true
+            hasCelebratedToday = true
+        } else if (todayDone < todayScheduled) {
+            hasCelebratedToday = false
+        }
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -401,6 +418,12 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                     )
                 }
             }
+            
+            // ── Confetti Overlay ────────────────────────────────────────
+            ConfettiOverlay(
+                isVisible = showConfetti,
+                onAnimationEnd = { showConfetti = false }
+            )
         }
     }
 

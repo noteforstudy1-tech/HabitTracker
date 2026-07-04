@@ -7,51 +7,54 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.graphics.Color
 
 val LocalDarkTheme = compositionLocalOf { false }
 
+// ── Inline White — defined first so color schemes can reference it ────────────
+private val White = Color(0xFFFFFFFF)
+
+// ── Dark Scheme ───────────────────────────────────────────────────────────────
 private val DarkColorScheme = darkColorScheme(
     primary               = AccentPurple,
-    onPrimary             = Color_White,
+    onPrimary             = White,
     primaryContainer      = GlassBgElevatedDark,
     onPrimaryContainer    = TextPrimaryDark,
     secondary             = AccentCyan,
-    onSecondary           = Color_White,
+    onSecondary           = White,
     secondaryContainer    = GlassBgDark,
     onSecondaryContainer  = TextSecondaryDark,
     background            = BgGradientStartDark,
     onBackground          = TextPrimaryDark,
-    surface               = GlassBgDark,           // Opaque dark — text will be readable
-    onSurface             = TextPrimaryDark,        // Always bright text
+    surface               = GlassBgDark,
+    onSurface             = TextPrimaryDark,
     surfaceVariant        = GlassBgElevatedDark,
-    onSurfaceVariant      = TextSecondaryDark,      // Legible secondary text in dark mode
+    onSurfaceVariant      = TextSecondaryDark,
     outline               = GlassBorderDark,
     error                 = AccentRed,
-    onError               = Color_White
+    onError               = White
 )
 
+// ── Light Scheme ──────────────────────────────────────────────────────────────
 private val LightColorScheme = lightColorScheme(
     primary               = AccentPurple,
-    onPrimary             = Color_White,
+    onPrimary             = White,
     primaryContainer      = GlassBgElevatedLight,
     onPrimaryContainer    = TextPrimaryLight,
     secondary             = AccentCyan,
-    onSecondary           = Color_White,
+    onSecondary           = White,
     secondaryContainer    = GlassBgLight,
     onSecondaryContainer  = TextSecondaryLight,
     background            = BgGradientStartLight,
     onBackground          = TextPrimaryLight,
-    surface               = GlassBgLight,          // Pure white — fully readable
-    onSurface             = TextPrimaryLight,       // Dark eggplant — max contrast on white
+    surface               = GlassBgLight,
+    onSurface             = TextPrimaryLight,
     surfaceVariant        = GlassBgElevatedLight,
-    onSurfaceVariant      = TextSecondaryLight,     // Darker secondary text
+    onSurfaceVariant      = TextSecondaryLight,
     outline               = GlassBorderLight,
     error                 = AccentRed,
-    onError               = Color_White
+    onError               = White
 )
-
-// Convenience constant so it doesn't conflict with androidx Color class
-private val Color_White = androidx.compose.ui.graphics.Color.White
 
 @Composable
 fun HabitTrackerTheme(

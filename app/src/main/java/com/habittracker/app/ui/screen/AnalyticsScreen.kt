@@ -215,21 +215,6 @@ fun HeatmapGrid(
             Row(
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Y-Axis Labels
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.padding(top = 2.dp, end = 6.dp)
-                ) {
-                    listOf("M", "W", "F").forEach { label ->
-                        Text(
-                            text = label,
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.height(16.dp)
-                        )
-                    }
-                }
-                
                 // Grid
                 Row(
                     modifier = Modifier.fillMaxWidth(),

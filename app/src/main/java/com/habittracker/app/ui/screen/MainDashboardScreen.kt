@@ -128,7 +128,7 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                 ) {
                     // ── App name ──────────────────────────────────────────────
                     Text(
-                        text = "HabitTracker",
+                        text = "Aham",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.ExtraBold,
                         color = AccentPurple
@@ -195,11 +195,6 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Text(
-                                        text = "Tap ✏️ to edit your name",
-                                        fontSize = 10.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
                                 }
                                 IconButton(onClick = { isEditingName = true }, modifier = Modifier.size(32.dp)) {
                                     Icon(Icons.Default.Edit, "Edit Name", tint = AccentPurple, modifier = Modifier.size(18.dp))
@@ -221,6 +216,8 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                     }
 
                     // Removed Backup & Restore section since Android Auto Backup handles it seamlessly in the background
+
+                    Spacer(modifier = Modifier.weight(1f))
 
                     // ── Sticky footer ────────────────────────────────────────
                     Column(modifier = Modifier.fillMaxWidth()) {

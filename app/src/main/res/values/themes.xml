@@ -11,7 +11,7 @@
         <!-- Background color of the splash screen -->
         <item name="windowSplashScreenBackground">#1A1030</item>
         <!-- The splash screen icon (we'll just use the default launcher icon for now) -->
-        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_round</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/app_icon</item>
         <!-- Duration (max 1000ms) -->
         <item name="windowSplashScreenAnimationDuration">500</item>
         <!-- Theme to switch to after splash screen -->

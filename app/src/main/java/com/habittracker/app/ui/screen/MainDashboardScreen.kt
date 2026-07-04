@@ -84,16 +84,18 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
 
     // ── Background gradient ──────────────────────────────────────────────────
     val isDark  = state.userProfile?.isDarkMode ?: false
-    val bgBrush = remember(isDark) {
-        if (isDark) Brush.verticalGradient(listOf(BgGradientStartDark, BgGradientMidDark, BgGradientEndDark))
-        else        Brush.verticalGradient(listOf(BgGradientStartLight, BgGradientMidLight, BgGradientEndLight))
-    }
+    // Must NOT be wrapped in remember(isDark) so recomposition happens when isDark flips
+    val bgBrush = if (isDark)
+        Brush.verticalGradient(listOf(BgGradientStartDark, BgGradientMidDark, BgGradientEndDark))
+    else
+        Brush.verticalGradient(listOf(BgGradientStartLight, BgGradientMidLight, BgGradientEndLight))
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet(
-                drawerContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.97f),
+                // Use fully opaque surface so dark mode text is readable
+                drawerContainerColor = MaterialTheme.colorScheme.surface,
                 modifier = Modifier
                     .width(300.dp)
                     .fillMaxHeight()
@@ -396,7 +398,7 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                                 "Habit Grid",
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                             val weekRange = remember(state.selectedWeekStart) {
                                 val end = state.selectedWeekStart.plusDays(6)

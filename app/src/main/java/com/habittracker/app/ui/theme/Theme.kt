@@ -8,48 +8,50 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 
-// Composition local so any composable can read the current dark mode state
 val LocalDarkTheme = compositionLocalOf { false }
 
 private val DarkColorScheme = darkColorScheme(
     primary               = AccentPurple,
-    onPrimary             = TextPrimaryDark,
+    onPrimary             = Color_White,
     primaryContainer      = GlassBgElevatedDark,
     onPrimaryContainer    = TextPrimaryDark,
     secondary             = AccentCyan,
-    onSecondary           = TextPrimaryDark,
+    onSecondary           = Color_White,
     secondaryContainer    = GlassBgDark,
     onSecondaryContainer  = TextSecondaryDark,
     background            = BgGradientStartDark,
     onBackground          = TextPrimaryDark,
-    surface               = GlassBgDark,
-    onSurface             = TextPrimaryDark,
+    surface               = GlassBgDark,           // Opaque dark — text will be readable
+    onSurface             = TextPrimaryDark,        // Always bright text
     surfaceVariant        = GlassBgElevatedDark,
-    onSurfaceVariant      = TextSecondaryDark,
+    onSurfaceVariant      = TextSecondaryDark,      // Legible secondary text in dark mode
     outline               = GlassBorderDark,
     error                 = AccentRed,
-    onError               = TextPrimaryDark
+    onError               = Color_White
 )
 
 private val LightColorScheme = lightColorScheme(
     primary               = AccentPurple,
-    onPrimary             = TextPrimaryLight,
+    onPrimary             = Color_White,
     primaryContainer      = GlassBgElevatedLight,
     onPrimaryContainer    = TextPrimaryLight,
     secondary             = AccentCyan,
-    onSecondary           = TextPrimaryLight,
+    onSecondary           = Color_White,
     secondaryContainer    = GlassBgLight,
     onSecondaryContainer  = TextSecondaryLight,
     background            = BgGradientStartLight,
     onBackground          = TextPrimaryLight,
-    surface               = GlassBgLight,
-    onSurface             = TextPrimaryLight,
+    surface               = GlassBgLight,          // Pure white — fully readable
+    onSurface             = TextPrimaryLight,       // Dark eggplant — max contrast on white
     surfaceVariant        = GlassBgElevatedLight,
-    onSurfaceVariant      = TextSecondaryLight,
+    onSurfaceVariant      = TextSecondaryLight,     // Darker secondary text
     outline               = GlassBorderLight,
     error                 = AccentRed,
-    onError               = TextPrimaryLight
+    onError               = Color_White
 )
+
+// Convenience constant so it doesn't conflict with androidx Color class
+private val Color_White = androidx.compose.ui.graphics.Color.White
 
 @Composable
 fun HabitTrackerTheme(

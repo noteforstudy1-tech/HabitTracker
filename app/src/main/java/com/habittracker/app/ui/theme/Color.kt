@@ -7,9 +7,9 @@ val BgGradientStartDark  = Color(0xFF0B061A) // Very deep purple-black
 val BgGradientMidDark    = Color(0xFF140728) // Deep amethyst-black
 val BgGradientEndDark    = Color(0xFF040209) // Ultra dark slate
 
-val GlassBgDark          = Color(0x1CFFFFFF) // Frosted translucent white
-val GlassBgElevatedDark  = Color(0x28FFFFFF) // Slightly less transparent for highlights
-val GlassBorderDark      = Color(0x26FFFFFF) // Subtle thin light border
+val GlassBgDark          = Color(0xFF1A1030) // Dark, semi-opaque surface (NOT transparent)
+val GlassBgElevatedDark  = Color(0xFF231640) // Slightly elevated dark surface
+val GlassBorderDark      = Color(0x40FFFFFF) // Clearly visible thin border in dark mode
 
 val TextPrimaryDark      = Color(0xFFF5F2F9) // Crisp light purple-white
 val TextSecondaryDark    = Color(0xFFB5AEC4) // Muted lavender grey
@@ -20,13 +20,14 @@ val BgGradientStartLight = Color(0xFFE8DDFC) // Light pastel lavender
 val BgGradientMidLight   = Color(0xFFF4EFFF) // Pale lilac
 val BgGradientEndLight   = Color(0xFFDCC8FB) // Richer pastel purple
 
-val GlassBgLight         = Color(0x73FFFFFF) // Semi-transparent white
-val GlassBgElevatedLight = Color(0x99FFFFFF) // Brighter white glass
-val GlassBorderLight     = Color(0x407C3AED) // Muted purple-tinted border
+// Light mode: use OPAQUE surfaces so text is always readable
+val GlassBgLight         = Color(0xFFFFFFFF) // Pure white surface for max readability
+val GlassBgElevatedLight = Color(0xFFF3EEFF) // Very light lavender surface
+val GlassBorderLight     = Color(0xFF7C3AED).copy(alpha = 0.35f) // Clearly visible purple border
 
-val TextPrimaryLight     = Color(0xFF1D0E30) // Dark eggplant text
-val TextSecondaryLight   = Color(0xFF5A4D73) // Muted slate purple
-val TextHintLight        = Color(0xFF9F95B5) // Muted placeholder
+val TextPrimaryLight     = Color(0xFF1D0E30) // Dark eggplant text — high contrast
+val TextSecondaryLight   = Color(0xFF4A3D63) // Darker muted slate purple (was too light)
+val TextHintLight        = Color(0xFF7A6E94) // Muted placeholder
 
 // ── Core App Accents ──────────────────────────────────────────────────────────
 val AccentPurple         = Color(0xFF8B5CF6) // Vibrant violet

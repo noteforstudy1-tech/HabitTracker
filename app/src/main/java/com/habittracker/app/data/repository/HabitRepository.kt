@@ -39,6 +39,16 @@ class HabitRepository(
         userProfileDao.upsertProfile(current.copy(isDarkMode = isDark))
     }
 
+    suspend fun updateHaptics(enabled: Boolean) {
+        val current = userProfile.first() ?: UserProfile()
+        userProfileDao.upsertProfile(current.copy(hapticsEnabled = enabled))
+    }
+
+    suspend fun updateCompactMode(enabled: Boolean) {
+        val current = userProfile.first() ?: UserProfile()
+        userProfileDao.upsertProfile(current.copy(compactHabitGrid = enabled))
+    }
+
     suspend fun updateStreak(streak: Int) {
         val current = userProfile.first() ?: UserProfile()
         userProfileDao.upsertProfile(current.copy(currentStreak = streak))

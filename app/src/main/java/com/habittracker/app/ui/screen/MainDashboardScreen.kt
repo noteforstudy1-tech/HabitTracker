@@ -59,9 +59,13 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
         nameInput = state.userProfile?.name ?: "Your Name"
     }
 
-    // Navigate to analytics screen
+    // Navigate to analytics or settings screen
     if (currentScreen == "analytics") {
         AnalyticsScreen(viewModel = viewModel, onBack = { currentScreen = "dashboard" })
+        return
+    }
+    if (currentScreen == "settings") {
+        SettingsScreen(viewModel = viewModel, onBack = { currentScreen = "dashboard" })
         return
     }
 
@@ -195,51 +199,8 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                         scope.launch { drawerState.close(); currentScreen = "analytics" }
                     }
 
-                    Spacer(Modifier.height(20.dp))
-                    DrawerSectionLabel("SETTINGS")
-                    Spacer(Modifier.height(8.dp))
-
-                    // ── Dark mode toggle ─────────────────────────────────────
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = if (isDark) Icons.Default.DarkMode else Icons.Default.LightMode,
-                                contentDescription = "Theme",
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "Dark Mode",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = if (isDark) "Currently: Dark" else "Currently: Light",
-                                    fontSize = 10.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        Switch(
-                            checked = isDark,
-                            onCheckedChange = { viewModel.toggleDarkMode() },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor  = Color.White,
-                                checkedTrackColor  = AccentPurple,
-                                uncheckedTrackColor = MaterialTheme.colorScheme.outline
-                            )
-                        )
+                    DrawerMenuItem(Icons.Default.Settings, "Settings") {
+                        scope.launch { drawerState.close(); currentScreen = "settings" }
                     }
 
                     Spacer(Modifier.height(20.dp))
@@ -424,13 +385,15 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                 // ── Habit rows ──────────────────────────────────────────────
                 items(items = state.habits, key = { it.id }) { habit ->
                     HabitRow(
-                        habit       = habit,
-                        weekDates   = weekDates,
+                        habit = habit,
+                        weekDates = weekDates,
                         isCompleted = { date -> viewModel.isCompleted(state, habit.id, date.toEpochDay()) },
-                        onToggle    = { date -> viewModel.toggleHabitCompletion(habit.id, date.toEpochDay()) },
+                        onToggle = { date -> viewModel.toggleHabitCompletion(habit.id, date.toEpochDay()) },
                         onEditClick = { habitToEdit = habit },
                         isScheduled = { date -> viewModel.isScheduledForDate(habit, date) },
-                        today       = state.today
+                        today = state.today,
+                        hapticsEnabled = state.userProfile?.hapticsEnabled ?: true,
+                        compactMode = state.userProfile?.compactHabitGrid ?: false
                     )
                 }
 

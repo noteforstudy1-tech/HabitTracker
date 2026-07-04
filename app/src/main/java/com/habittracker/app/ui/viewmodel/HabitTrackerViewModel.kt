@@ -248,6 +248,20 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    fun toggleHaptics() {
+        viewModelScope.launch {
+            val current = uiState.value.userProfile?.hapticsEnabled ?: true
+            repository.updateHaptics(!current)
+        }
+    }
+
+    fun toggleCompactMode() {
+        viewModelScope.launch {
+            val current = uiState.value.userProfile?.compactHabitGrid ?: false
+            repository.updateCompactMode(!current)
+        }
+    }
+
     // ── Public Helpers ──────────────────────────────────────────────────────
 
     fun isCompleted(state: HabitTrackerUiState, habitId: Long, epochDay: Long): Boolean =

@@ -125,7 +125,9 @@ fun HabitRow(
     onToggle: (LocalDate) -> Unit,
     onEditClick: () -> Unit,
     isScheduled: (LocalDate) -> Boolean,
-    today: LocalDate
+    today: LocalDate,
+    hapticsEnabled: Boolean,
+    compactMode: Boolean
 ) {
     val accentColor = remember(habit.colorHex) {
         try { Color(android.graphics.Color.parseColor(habit.colorHex)) }
@@ -143,7 +145,7 @@ fun HabitRow(
             modifier = Modifier
                 .weight(0.30f)
                 .clickable(onClick = onEditClick)
-                .padding(horizontal = 10.dp, vertical = 14.dp),
+                .padding(horizontal = 10.dp, vertical = if (compactMode) 10.dp else 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -185,6 +187,8 @@ fun HabitRow(
                         isFuture    = future,
                         isScheduled = scheduled,
                         accentColor = accentColor,
+                        hapticsEnabled = hapticsEnabled,
+                        compactMode    = compactMode,
                         onClick     = {
                             if (!future && scheduled) onToggle(date)
                         }
@@ -203,6 +207,8 @@ fun CheckboxCell(
     isFuture: Boolean,
     isScheduled: Boolean,
     accentColor: Color,
+    hapticsEnabled: Boolean,
+    compactMode: Boolean,
     onClick: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
@@ -236,13 +242,15 @@ fun CheckboxCell(
 
     Box(
         modifier = Modifier
-            .size(44.dp)                            // 44dp — meets minimum touch target
+            .size(if (compactMode) 38.dp else 44.dp)
             .clickable(
                 interactionSource = interactionSource,
                 indication        = ripple(bounded = true, color = accentColor), // ripple for tactile feedback
                 enabled           = !isFuture && isScheduled,
                 onClick           = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    if (hapticsEnabled) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    }
                     onClick()
                 }
             ),
@@ -250,7 +258,7 @@ fun CheckboxCell(
     ) {
         Box(
             modifier = Modifier
-                .size(34.dp)
+                .size(if (compactMode) 28.dp else 34.dp)
                 .scale(scale)
                 .clip(RoundedCornerShape(8.dp))
                 .background(bgColor)

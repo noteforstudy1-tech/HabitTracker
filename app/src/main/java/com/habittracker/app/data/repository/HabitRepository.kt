@@ -25,13 +25,18 @@ class HabitRepository(
 
     suspend fun checkAndInitProfile() {
         if (userProfileDao.profileExists() == 0) {
-            userProfileDao.upsertProfile(UserProfile(name = "Raghav Parashar", currentStreak = 0))
+            userProfileDao.upsertProfile(UserProfile(name = "Your Name", currentStreak = 0, isDarkMode = false))
         }
     }
 
     suspend fun updateUserProfile(name: String) {
         val current = userProfile.first() ?: UserProfile()
         userProfileDao.upsertProfile(current.copy(name = name))
+    }
+
+    suspend fun updateDarkMode(isDark: Boolean) {
+        val current = userProfile.first() ?: UserProfile()
+        userProfileDao.upsertProfile(current.copy(isDarkMode = isDark))
     }
 
     suspend fun updateStreak(streak: Int) {
@@ -61,12 +66,17 @@ class HabitRepository(
     fun getDailyCompletionCounts(startDay: Long, endDay: Long): Flow<List<DailyCount>> =
         completionDao.getDailyCompletionCounts(startDay, endDay)
 
+    /**
+     * Toggle: if already completed → delete the row entirely.
+     * If not completed → insert with isCompleted=true.
+     * Using delete-then-insert (not flip) ensures the Flow emits a real change event.
+     */
     suspend fun toggleCompletion(habitId: Long, dateEpochDay: Long) {
-        val completed = completionDao.isCompleted(habitId, dateEpochDay)
-        if (completed) {
+        val alreadyDone = completionDao.isCompleted(habitId, dateEpochDay)
+        if (alreadyDone) {
             completionDao.deleteCompletion(habitId, dateEpochDay)
         } else {
-            completionDao.upsertCompletion(HabitCompletion(habitId, dateEpochDay))
+            completionDao.upsertCompletion(HabitCompletion(habitId = habitId, dateEpochDay = dateEpochDay, isCompleted = true))
         }
     }
 

@@ -6,7 +6,6 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,11 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -35,264 +34,246 @@ import com.habittracker.app.ui.theme.*
 import com.habittracker.app.ui.viewmodel.HabitTrackerViewModel
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
+    // ── State ───────────────────────────────────────────────────────────────
+    val state       by viewModel.uiState.collectAsStateWithLifecycle()
+    val scope       = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val context     = LocalContext.current
 
-    // Screen navigation toggle: "dashboard" or "analytics"
-    var currentScreen by remember { mutableStateOf("dashboard") }
-
-    // Dialog flags
-    var showAddDialog by remember { mutableStateOf(false) }
-    var habitToEdit by remember { mutableStateOf<Habit?>(null) }
-    var habitToDelete by remember { mutableStateOf<Habit?>(null) }
+    var currentScreen    by remember { mutableStateOf("dashboard") }
+    var showAddDialog    by remember { mutableStateOf(false) }
+    var habitToEdit      by remember { mutableStateOf<Habit?>(null) }
+    var habitToDelete    by remember { mutableStateOf<Habit?>(null) }
     var showImportDialog by remember { mutableStateOf(false) }
-    var importInputText by remember { mutableStateOf("") }
+    var importInputText  by remember { mutableStateOf("") }
+    var isEditingName    by remember { mutableStateOf(false) }
+    var nameInput        by remember { mutableStateOf("") }
 
-    // Drawer profile edit state
-    var isEditingName by remember { mutableStateOf(false) }
-    var newNameInput by remember { mutableStateOf("") }
-
-    // Sync input name
     LaunchedEffect(state.userProfile) {
-        state.userProfile?.name?.let { newNameInput = it }
+        nameInput = state.userProfile?.name ?: "Your Name"
     }
 
-    // Build 7 dates for the selected week
+    // Navigate to analytics screen
+    if (currentScreen == "analytics") {
+        AnalyticsScreen(viewModel = viewModel, onBack = { currentScreen = "dashboard" })
+        return
+    }
+
+    // ── Week dates derived from selectedWeekStart ────────────────────────────
     val weekDates = remember(state.selectedWeekStart) {
         (0..6).map { state.selectedWeekStart.plusDays(it.toLong()) }
     }
 
-    // Chart progress bar data
-    val barData = remember(weekDates, state.dailyCounts, state.totalHabits, state.today) {
-        val dayLabels = listOf("M", "T", "W", "T", "F", "S", "S")
-        weekDates.mapIndexed { idx, date ->
-            val progress = viewModel.getDayProgress(state, date.toEpochDay())
+    // ── Progress bars for chart ──────────────────────────────────────────────
+    val barData = remember(weekDates, state.dailyCounts, state.habits, state.today) {
+        val labels = listOf("M", "T", "W", "T", "F", "S", "S")
+        weekDates.mapIndexed { i, date ->
             BarData(
-                label = dayLabels[idx],
-                progress = progress.coerceIn(0f, 1f),
-                isToday = date == state.today
+                label    = labels[i],
+                progress = viewModel.getDayProgress(state, date.toEpochDay()),
+                isToday  = date == state.today
             )
         }
     }
 
-    val isDark = isSystemInDarkTheme()
-    val mainGradient = remember(isDark) {
-        if (isDark) {
-            Brush.verticalGradient(listOf(BgGradientStartDark, BgGradientMidDark, BgGradientEndDark))
-        } else {
-            Brush.verticalGradient(listOf(BgGradientStartLight, BgGradientMidLight, BgGradientEndLight))
-        }
-    }
-
-    if (currentScreen == "analytics") {
-        AnalyticsScreen(
-            viewModel = viewModel,
-            onBack = { currentScreen = "dashboard" }
-        )
-        return
+    // ── Background gradient ──────────────────────────────────────────────────
+    val isDark  = state.userProfile?.isDarkMode ?: false
+    val bgBrush = remember(isDark) {
+        if (isDark) Brush.verticalGradient(listOf(BgGradientStartDark, BgGradientMidDark, BgGradientEndDark))
+        else        Brush.verticalGradient(listOf(BgGradientStartLight, BgGradientMidLight, BgGradientEndLight))
     }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet(
-                drawerContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
+                drawerContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.97f),
                 modifier = Modifier
                     .width(300.dp)
                     .fillMaxHeight()
-                    .border(width = 1.dp, color = MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp))
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(24.dp)
+                        .padding(horizontal = 20.dp, vertical = 24.dp)
                 ) {
-                    // Drawer Header
+                    // ── App name ──────────────────────────────────────────────
                     Text(
-                        text = "Dashboard",
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = "HabitTracker",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = AccentPurple
                     )
-                    Spacer(Modifier.height(24.dp))
-
-                    // Profile Section
+                    Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "PROFILE",
+                        text = "Your personal wellness companion",
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.sp
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
+                    Spacer(Modifier.height(24.dp))
+                    DrawerSectionLabel("PROFILE")
                     Spacer(Modifier.height(8.dp))
 
+                    // ── Profile card ─────────────────────────────────────────
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
-                            .border(width = 1.dp, color = MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
+                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
                             .padding(14.dp)
                     ) {
-                        Column {
-                            if (isEditingName) {
+                        if (isEditingName) {
+                            Column {
                                 OutlinedTextField(
-                                    value = newNameInput,
-                                    onValueChange = { newNameInput = it },
+                                    value = nameInput,
+                                    onValueChange = { nameInput = it },
                                     label = { Text("Your Name", fontSize = 11.sp) },
                                     singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = AccentPurple,
-                                        focusedLabelColor = AccentPurple
-                                    ),
-                                    modifier = Modifier.fillMaxWidth()
+                                        focusedLabelColor  = AccentPurple
+                                    )
                                 )
                                 Spacer(Modifier.height(8.dp))
-                                Row(
-                                    horizontalArrangement = Arrangement.End,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
+                                Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
                                     TextButton(onClick = { isEditingName = false }) {
                                         Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     Button(
                                         onClick = {
-                                            if (newNameInput.isNotBlank()) {
-                                                viewModel.updateProfileName(newNameInput)
+                                            if (nameInput.isNotBlank()) {
+                                                viewModel.updateProfileName(nameInput)
                                                 isEditingName = false
                                             }
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = AccentPurple)
-                                    ) {
-                                        Text("Save", color = Color.White)
-                                    }
+                                    ) { Text("Save", color = Color.White) }
                                 }
-                            } else {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = state.userProfile?.name ?: "Raghav Parashar",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = "Active Tracker",
-                                            fontSize = 11.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    IconButton(
-                                        onClick = {
-                                            newNameInput = state.userProfile?.name ?: "Raghav Parashar"
-                                            isEditingName = true
-                                        },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Edit,
-                                            contentDescription = "Edit Profile Name",
-                                            tint = AccentPurple,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
+                            }
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = state.userProfile?.name ?: "Your Name",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Tap ✏️ to edit your name",
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                IconButton(onClick = { isEditingName = true }, modifier = Modifier.size(32.dp)) {
+                                    Icon(Icons.Default.Edit, "Edit Name", tint = AccentPurple, modifier = Modifier.size(18.dp))
                                 }
                             }
                         }
                     }
 
                     Spacer(Modifier.height(24.dp))
-
-                    // Menu Actions
-                    Text(
-                        text = "NAVIGATE",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.sp
-                    )
+                    DrawerSectionLabel("NAVIGATE")
                     Spacer(Modifier.height(8.dp))
 
-                    NavigationMenuItem(
-                        icon = Icons.Default.BarChart,
-                        label = "Analytics & Insights",
-                        onClick = {
-                            scope.launch {
-                                drawerState.close()
-                                currentScreen = "analytics"
-                            }
-                        }
-                    )
+                    DrawerMenuItem(Icons.Default.BarChart, "Analytics & Insights") {
+                        scope.launch { drawerState.close(); currentScreen = "analytics" }
+                    }
 
-                    Spacer(Modifier.height(16.dp))
-
-                    Text(
-                        text = "BACKUP & RESTORE",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.sp
-                    )
+                    Spacer(Modifier.height(20.dp))
+                    DrawerSectionLabel("SETTINGS")
                     Spacer(Modifier.height(8.dp))
 
-                    // Export / Backup button (Share Intent)
-                    NavigationMenuItem(
-                        icon = Icons.Default.Share,
-                        label = "Export Data (Share)",
-                        onClick = {
-                            scope.launch {
-                                val json = viewModel.getExportJsonString()
-                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_SUBJECT, "Habit Tracker Backup")
-                                    putExtra(Intent.EXTRA_TEXT, json)
-                                }
-                                context.startActivity(Intent.createChooser(shareIntent, "Share Backup"))
-                                drawerState.close()
+                    // ── Dark mode toggle ─────────────────────────────────────
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (isDark) Icons.Default.DarkMode else Icons.Default.LightMode,
+                                contentDescription = "Theme",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Dark Mode",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (isDark) "Currently: Dark" else "Currently: Light",
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
-                    )
+                        Switch(
+                            checked = isDark,
+                            onCheckedChange = { viewModel.toggleDarkMode() },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor  = Color.White,
+                                checkedTrackColor  = AccentPurple,
+                                uncheckedTrackColor = MaterialTheme.colorScheme.outline
+                            )
+                        )
+                    }
+
+                    Spacer(Modifier.height(20.dp))
+                    DrawerSectionLabel("BACKUP & RESTORE")
+                    Spacer(Modifier.height(8.dp))
+
+                    DrawerMenuItem(Icons.Default.Share, "Export Data (Share)") {
+                        scope.launch {
+                            val json = viewModel.getExportJsonString()
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, "HabitTracker Backup")
+                                putExtra(Intent.EXTRA_TEXT, json)
+                            }
+                            context.startActivity(Intent.createChooser(intent, "Share Backup"))
+                            drawerState.close()
+                        }
+                    }
 
                     Spacer(Modifier.height(6.dp))
 
-                    // Import Backup button (Dialog Paste)
-                    NavigationMenuItem(
-                        icon = Icons.Default.Upload,
-                        label = "Import Backup",
-                        onClick = {
-                            scope.launch {
-                                importInputText = ""
-                                showImportDialog = true
-                                drawerState.close()
-                            }
-                        }
-                    )
+                    DrawerMenuItem(Icons.Default.Upload, "Import Backup") {
+                        importInputText = ""
+                        showImportDialog = true
+                        scope.launch { drawerState.close() }
+                    }
 
                     Spacer(modifier = Modifier.weight(1f))
 
-                    // Drawer Footer
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.Start
-                    ) {
+                    // ── Sticky footer ────────────────────────────────────────
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
                             text = "made by raghav",
                             fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "aham brahmasmi",
                             fontSize = 13.sp,
@@ -306,22 +287,18 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
     ) {
         Scaffold(
             containerColor = Color.Transparent,
-            modifier = Modifier.background(mainGradient),
+            modifier = Modifier.background(bgBrush),
             topBar = {
                 TopAppBar(
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(
-                                imageVector = Icons.Default.Menu,
-                                contentDescription = "Menu",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
+                            Icon(Icons.Default.Menu, "Menu", tint = MaterialTheme.colorScheme.onSurface)
                         }
                     },
                     title = {
                         Column {
                             Text(
-                                text = "Habit Tracker",
+                                text = "HabitTracker",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -329,53 +306,38 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                             val monthLabel = remember(state.selectedMonth) {
                                 state.selectedMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
                             }
-                            Text(
-                                text = monthLabel,
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Text(monthLabel, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
                     ),
                     actions = {
-                        // Current Streak Counter
+                        // Streak badge
                         val streak = state.userProfile?.currentStreak ?: 0
                         if (streak > 0) {
                             Box(
                                 modifier = Modifier
-                                    .background(AccentAmber.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                                    .background(AccentAmber.copy(alpha = 0.18f), RoundedCornerShape(12.dp))
                                     .border(1.dp, AccentAmber.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
                             ) {
-                                Text(
-                                    text = "🔥 $streak days",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = AccentAmber
-                                )
+                                Text("🔥 $streak days", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AccentAmber)
                             }
+                            Spacer(Modifier.width(6.dp))
                         }
-                        Spacer(Modifier.width(8.dp))
-
-                        // Active Habits count badge
-                        val activeHabitCount = state.habits.size
-                        val activeBadgeText = if (activeHabitCount == 1) "1 Active Habit" else "$activeHabitCount Active Habits"
+                        // Active habits badge
+                        val count = state.habits.size
+                        val badgeLabel = if (count == 1) "1 Habit" else "$count Habits"
                         Box(
                             modifier = Modifier
-                                .background(AccentPurple.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                                .background(AccentPurple.copy(alpha = 0.18f), RoundedCornerShape(12.dp))
                                 .border(1.dp, AccentPurple.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
                         ) {
-                            Text(
-                                text = "💪 $activeBadgeText",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AccentPurpleLight
-                            )
+                            Text("💪 $badgeLabel", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AccentPurpleLight)
                         }
-                        Spacer(Modifier.width(12.dp))
+                        Spacer(Modifier.width(10.dp))
                     }
                 )
             },
@@ -385,59 +347,44 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                     containerColor = AccentPurple,
                     contentColor = Color.White,
                     shape = CircleShape,
-                    elevation = FloatingActionButtonDefaults.elevation(8.dp)
+                    elevation = FloatingActionButtonDefaults.elevation(10.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Habit")
+                    Icon(Icons.Default.Add, "Add Habit")
                 }
             },
             bottomBar = {
                 MonthNavigationBar(
-                    selectedMonth = state.selectedMonth,
+                    selectedMonth    = state.selectedMonth,
                     currentWeekStart = state.selectedWeekStart,
-                    onPrevMonth = { viewModel.selectMonth(state.selectedMonth.minusMonths(1)) },
-                    onNextMonth = { viewModel.selectMonth(state.selectedMonth.plusMonths(1)) },
-                    onWeekSelected = { monday ->
-                        viewModel.selectWeekStart(monday)
-                        viewModel.selectDate(monday)
-                    }
+                    onPrevMonth      = { viewModel.selectMonth(state.selectedMonth.minusMonths(1)) },
+                    onNextMonth      = { viewModel.selectMonth(state.selectedMonth.plusMonths(1)) },
+                    onWeekSelected   = { monday -> viewModel.selectWeekStart(monday) }
                 )
             }
-        ) { paddingValues ->
+        ) { padding ->
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(horizontal = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-                contentPadding = PaddingValues(top = 14.dp, bottom = 80.dp)
+                    .padding(padding)
+                    .padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp)
             ) {
-                // ── analytics row: side-by-side stats ─────────────────────────────
+                // ── Stats cards ─────────────────────────────────────────────
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        AnalyticsCard(
-                            title = "Weekly Average",
-                            value = "${state.weeklyAverage.toInt()}%",
-                            color = AccentPurple,
-                            modifier = Modifier.weight(1f)
-                        )
-                        AnalyticsCard(
-                            title = "Monthly Average",
-                            value = "${state.monthlyAverage.toInt()}%",
-                            color = AccentCyan,
-                            modifier = Modifier.weight(1f)
-                        )
+                        StatsCard("Weekly Avg", "${state.weeklyAverage.toInt()}%", AccentPurple, Modifier.weight(1f))
+                        StatsCard("Monthly Avg", "${state.monthlyAverage.toInt()}%", AccentCyan, Modifier.weight(1f))
                     }
                 }
 
-                // ── chart ────────────────────────────────────────────────────────
-                item {
-                    DailyProgressChart(bars = barData)
-                }
+                // ── Progress bar chart ──────────────────────────────────────
+                item { DailyProgressChart(bars = barData) }
 
-                // ── section header ────────────────────────────────────────────────
+                // ── Section header ──────────────────────────────────────────
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -446,86 +393,70 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                     ) {
                         Column {
                             Text(
-                                text = "Habit Grid",
+                                "Habit Grid",
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             val weekRange = remember(state.selectedWeekStart) {
                                 val end = state.selectedWeekStart.plusDays(6)
-                                val fmt = DateTimeFormatter.ofPattern("d MMM")
-                                "${state.selectedWeekStart.format(fmt)} – ${end.format(fmt)}"
+                                "${state.selectedWeekStart.format(DateTimeFormatter.ofPattern("d MMM"))} – ${end.format(DateTimeFormatter.ofPattern("d MMM yyyy"))}"
                             }
-                            Text(
-                                text = weekRange,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Text(weekRange, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
 
-                // ── sticky table headers ──────────────────────────────────────────
+                // ── Grid header ─────────────────────────────────────────────
                 if (state.habits.isNotEmpty()) {
                     item {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                                .border(width = 1.dp, color = MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                                .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp))
+                                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp))
                         ) {
-                            HabitGridHeader(
-                                weekDates = weekDates,
-                                today = state.today
-                            )
+                            HabitGridHeader(weekDates = weekDates, today = state.today)
                         }
                     }
                 }
 
-                // ── habit rows ───────────────────────────────────────────────────
+                // ── Habit rows ──────────────────────────────────────────────
                 items(items = state.habits, key = { it.id }) { habit ->
                     HabitRow(
-                        habit = habit,
-                        weekDates = weekDates,
-                        isCompleted = { date ->
-                            viewModel.isCompleted(state, habit.id, date.toEpochDay())
-                        },
-                        onToggle = { date ->
-                            viewModel.toggleHabitCompletion(habit.id, date.toEpochDay())
-                        },
+                        habit       = habit,
+                        weekDates   = weekDates,
+                        isCompleted = { date -> viewModel.isCompleted(state, habit.id, date.toEpochDay()) },
+                        onToggle    = { date -> viewModel.toggleHabitCompletion(habit.id, date.toEpochDay()) },
                         onEditClick = { habitToEdit = habit },
-                        isScheduled = { date ->
-                            viewModel.isScheduledForDate(habit, date)
-                        },
-                        today = state.today
+                        isScheduled = { date -> viewModel.isScheduledForDate(habit, date) },
+                        today       = state.today
                     )
                 }
 
-                // ── rounded bottom border for habit grid ──────────────────────────
+                // Grid bottom cap
                 if (state.habits.isNotEmpty()) {
                     item {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(16.dp)
-                                .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
-                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
-                                .border(width = 1.dp, color = MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
+                                .height(14.dp)
+                                .clip(RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp))
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.45f))
+                                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp))
                         )
                     }
                 }
 
-                // ── empty state ──────────────────────────────────────────────────
+                // ── Empty state ─────────────────────────────────────────────
                 if (state.habits.isEmpty()) {
-                    item {
-                        EmptyHabitState(onAdd = { showAddDialog = true })
-                    }
+                    item { EmptyHabitState(onAdd = { showAddDialog = true }) }
                 }
 
-                // ── wellness check-in ────────────────────────────────────────────
+                // ── Wellness section ────────────────────────────────────────
                 item {
                     WellnessSection(
-                        wellness = state.wellnessEntry,
+                        wellness     = state.wellnessEntry,
                         selectedDate = state.selectedDate,
                         onMoodChange = viewModel::updateMood,
                         onSleepChange = viewModel::updateSleep
@@ -535,14 +466,14 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
         }
     }
 
-    // ── CRUD dialogs ─────────────────────────────────────────────────────────
+    // ── Dialogs ─────────────────────────────────────────────────────────────
 
     if (showAddDialog) {
         HabitDialog(
             habitToEdit = null,
-            onDismiss = { showAddDialog = false },
-            onConfirm = { name, color, freqType, customDays ->
-                viewModel.addHabit(name, color, freqType, customDays)
+            onDismiss   = { showAddDialog = false },
+            onConfirm   = { name, color, freqType, days ->
+                viewModel.addHabit(name, color, freqType, days)
                 showAddDialog = false
             }
         )
@@ -551,34 +482,29 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
     habitToEdit?.let { habit ->
         HabitDialog(
             habitToEdit = habit,
-            onDismiss = { habitToEdit = null },
-            onConfirm = { name, color, freqType, customDays ->
-                viewModel.updateHabit(habit.copy(name = name, colorHex = color, frequencyType = freqType, customDays = customDays))
+            onDismiss   = { habitToEdit = null },
+            onConfirm   = { name, color, freqType, days ->
+                viewModel.updateHabit(habit.copy(name = name, colorHex = color, frequencyType = freqType, customDays = days))
                 habitToEdit = null
             },
-            onDelete = {
-                habitToDelete = habit
-                habitToEdit = null
-            }
+            onDelete    = { habitToDelete = habit; habitToEdit = null }
         )
     }
 
     habitToDelete?.let { habit ->
         AlertDialog(
             onDismissRequest = { habitToDelete = null },
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            title = { Text("Delete Habit?", color = MaterialTheme.colorScheme.onSurface) },
-            text = {
+            containerColor   = MaterialTheme.colorScheme.surfaceVariant,
+            icon             = { Icon(Icons.Default.Delete, null, tint = AccentRed) },
+            title            = { Text("Delete Habit?", color = MaterialTheme.colorScheme.onSurface) },
+            text             = {
                 Text(
-                    "\"${habit.name}\" and all its completion history will be removed.",
+                    "\"${habit.name}\" and all its history will be deleted.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteHabit(habit)
-                    habitToDelete = null
-                }) {
+                TextButton(onClick = { viewModel.deleteHabit(habit); habitToDelete = null }) {
                     Text("Delete", color = AccentRed)
                 }
             },
@@ -586,50 +512,42 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                 TextButton(onClick = { habitToDelete = null }) {
                     Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            },
-            icon = {
-                Icon(Icons.Default.Delete, contentDescription = null, tint = AccentRed)
             }
         )
     }
 
-    // Backup restore text input dialog
     if (showImportDialog) {
         AlertDialog(
             onDismissRequest = { showImportDialog = false },
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            containerColor   = MaterialTheme.colorScheme.surfaceVariant,
             title = { Text("Import Backup", color = MaterialTheme.colorScheme.onSurface) },
-            text = {
+            text  = {
                 Column {
                     Text(
-                        text = "Paste the exported backup JSON data below. This will overwrite all existing habits, completions, and wellness logs.",
+                        "Paste exported JSON backup data below. This overwrites all current data.",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(10.dp))
                     OutlinedTextField(
-                        value = importInputText,
-                        onValueChange = { importInputText = it },
-                        placeholder = { Text("Paste JSON here...", fontSize = 11.sp) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp),
-                        textStyle = MaterialTheme.typography.bodyMedium
+                        value          = importInputText,
+                        onValueChange  = { importInputText = it },
+                        placeholder    = { Text("Paste JSON here…", fontSize = 11.sp) },
+                        modifier       = Modifier.fillMaxWidth().height(120.dp),
+                        textStyle      = MaterialTheme.typography.bodyMedium
                     )
                 }
             },
             confirmButton = {
                 TextButton(
-                    onClick = {
-                        if (importInputText.isNotBlank()) {
-                            viewModel.importBackup(importInputText) { success ->
-                                if (success) {
-                                    Toast.makeText(context, "Backup restored successfully!", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Failed to parse backup. Check formatting.", Toast.LENGTH_SHORT).show()
-                                }
-                                showImportDialog = false
-                            }
+                    onClick  = {
+                        viewModel.importBackup(importInputText) { success ->
+                            Toast.makeText(
+                                context,
+                                if (success) "Backup restored!" else "Invalid backup data.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            showImportDialog = false
                         }
                     },
                     enabled = importInputText.isNotBlank()
@@ -646,44 +564,21 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
     }
 }
 
+// ── Helper Composables ───────────────────────────────────────────────────────
+
 @Composable
-fun AnalyticsCard(
-    title: String,
-    value: String,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(width = 1.dp, color = MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(16.dp))
-            .padding(14.dp)
-    ) {
-        Column {
-            Text(
-                text = title,
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = value,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
-        }
-    }
+private fun DrawerSectionLabel(text: String) {
+    Text(
+        text = text,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.ExtraBold,
+        letterSpacing = 1.2.sp,
+        color = AccentPurple
+    )
 }
 
 @Composable
-fun NavigationMenuItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    onClick: () -> Unit
-) {
+private fun DrawerMenuItem(icon: ImageVector, label: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -692,18 +587,26 @@ fun NavigationMenuItem(
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Icon(icon, label, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(14.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.SemiBold
-        )
+        Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+    }
+}
+
+@Composable
+fun StatsCard(title: String, value: String, color: Color, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+            .padding(14.dp)
+    ) {
+        Column {
+            Text(title, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(4.dp))
+            Text(value, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = color)
+        }
     }
 }
 
@@ -714,32 +617,31 @@ private fun EmptyHabitState(onAdd: () -> Unit) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
-            .border(width = 1.dp, color = MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(20.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
             .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("✨", fontSize = 40.sp)
+        Text("✨", fontSize = 44.sp)
         Spacer(Modifier.height(12.dp))
         Text(
-            "No habits configured",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
+            "No habits yet",
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            "Configure habits to begin tracking\nyour goals and metrics.",
+            "Tap + to create your first habit\nand start tracking your progress.",
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(18.dp))
         Button(
             onClick = onAdd,
-            colors = ButtonDefaults.buttonColors(containerColor = AccentPurple)
+            colors  = ButtonDefaults.buttonColors(containerColor = AccentPurple)
         ) {
-            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
             Text("Create First Habit", color = Color.White)
         }

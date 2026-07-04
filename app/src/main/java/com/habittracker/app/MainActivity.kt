@@ -7,6 +7,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -21,40 +23,37 @@ class MainActivity : ComponentActivity() {
 
     private val requestNotificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        // Permission result handled
-    }
+    ) { /* permission result handled silently */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // 1. Request POST_NOTIFICATIONS permission for API 33+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
 
-        // 2. Schedule daily check-in reminder notifications via WorkManager
         scheduleDailyReminder()
 
         setContent {
-            HabitTrackerTheme {
-                val viewModel: HabitTrackerViewModel = viewModel()
+            val viewModel: HabitTrackerViewModel = viewModel()
+            // Collect the user's saved dark-mode preference from Room
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            val isDarkMode = uiState.userProfile?.isDarkMode ?: false
+
+            HabitTrackerTheme(darkTheme = isDarkMode) {
                 MainDashboardScreen(viewModel = viewModel)
             }
         }
     }
 
     private fun scheduleDailyReminder() {
-        val reminderRequest = PeriodicWorkRequestBuilder<NotificationWorker>(
-            24, TimeUnit.HOURS
-        )
-        .setInitialDelay(12, TimeUnit.HOURS) // Delay to notify in the evening / next cycle
-        .build()
-
+        val reminderRequest = PeriodicWorkRequestBuilder<NotificationWorker>(24, TimeUnit.HOURS)
+            .setInitialDelay(12, TimeUnit.HOURS)
+            .build()
         WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
             "habit_daily_reminder_work",
-            ExistingPeriodicWorkPolicy.KEEP, // Keep existing to avoid rescheduling on every launch
+            ExistingPeriodicWorkPolicy.KEEP,
             reminderRequest
         )
     }

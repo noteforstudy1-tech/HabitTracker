@@ -1,0 +1,36 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.habittracker.app-mergeDebugResources-65:/values-v23/values-v23.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\Nishtha Parashar\\.gradle\\caches\\8.13\\transforms\\4572e676eb476769885c1113e1df44a5\\transformed\\glance-appwidget-1.1.0\\res\\values-v23\\values-v23.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "55",
+                        "endOffsets": "106"
+                    },
+                    "to": {
+                        "startLines": "4",
+                        "startColumns": "4",
+                        "startOffsets": "184",
+                        "endColumns": "55",
+                        "endOffsets": "235"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Nishtha Parashar\\.gradle\\caches\\8.13\\transforms\\7341463fdb979a537a154354cf63239a\\transformed\\work-runtime-2.9.0\\res\\values-v23\\values-v23.xml",
+                    "from": {
+                        "startLines": "2,3",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,121",
+                        "endColumns": "65,62",
+                        "endOffsets": "116,179"
+                    }
+                }
+            ]
+        }
+    ]
+}

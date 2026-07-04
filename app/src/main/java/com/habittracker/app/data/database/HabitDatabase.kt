@@ -13,7 +13,7 @@ import com.habittracker.app.data.model.UserProfile
 
 @Database(
     entities = [Habit::class, HabitCompletion::class, WellnessEntry::class, UserProfile::class],
-    version = 3,
+    version = 4, // bumped because UserProfile schema changed (added isDarkMode)
     exportSchema = false
 )
 abstract class HabitDatabase : RoomDatabase() {

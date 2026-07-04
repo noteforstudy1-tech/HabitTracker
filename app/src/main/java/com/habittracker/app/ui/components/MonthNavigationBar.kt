@@ -29,6 +29,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
+import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 
 @Composable
@@ -39,32 +40,31 @@ fun MonthNavigationBar(
     onNextMonth: () -> Unit,
     onWeekSelected: (LocalDate) -> Unit
 ) {
+    // Show 12 months centred around today — 6 past + current + 5 future (no year clamping)
     val months = buildList {
-        val now = YearMonth.now()
-        for (i in -3..3) {
-            add(now.plusMonths(i.toLong()))
-        }
+        val anchor = YearMonth.now()
+        for (i in -6..6) add(anchor.plusMonths(i.toLong()))
     }
 
-    // Glass container at the bottom
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .border(width = 1.dp, color = MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline,
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            )
             .padding(vertical = 8.dp)
     ) {
-        // Month scroll strip
+        // ── Month strip ────────────────────────────────────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+                .padding(horizontal = 6.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
-                onClick = onPrevMonth,
-                modifier = Modifier.size(36.dp)
-            ) {
+            IconButton(onClick = onPrevMonth, modifier = Modifier.size(36.dp)) {
                 Icon(
                     imageVector = Icons.Default.ChevronLeft,
                     contentDescription = "Previous Month",
@@ -76,42 +76,51 @@ fun MonthNavigationBar(
                 modifier = Modifier
                     .weight(1f)
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 months.forEach { month ->
                     val isSelected = month == selectedMonth
                     val bgColor by animateColorAsState(
-                        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                        targetValue = if (isSelected) AccentPurple else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
                         animationSpec = spring(stiffness = Spring.StiffnessMedium),
                         label = "month_bg"
                     )
-                    val borderCol = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                    val textColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                    val textColor = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                   else MaterialTheme.colorScheme.onSurface
 
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
                             .background(bgColor)
-                            .border(width = 1.dp, color = borderCol, shape = RoundedCornerShape(10.dp))
-                            .clickable { onWeekSelected(month.atDay(1)) }
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                            .border(
+                                1.dp,
+                                if (isSelected) AccentPurple else MaterialTheme.colorScheme.outline,
+                                RoundedCornerShape(10.dp)
+                            )
+                            .clickable {
+                                // Navigate to first week of that month
+                                val firstMonday = month.atDay(1)
+                                    .with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+                                onWeekSelected(firstMonday)
+                            }
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
                         contentAlignment = Alignment.Center
                     ) {
+                        // Full month name + full 4-digit year so years are never ambiguous
+                        val label = month.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()) +
+                                    " " + month.year
                         Text(
-                            text = month.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()) + " " + month.year.toString().takeLast(2),
-                            fontSize = 12.sp,
+                            text  = label,
+                            fontSize = 11.sp,
                             color = textColor,
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleSmall
                         )
                     }
                 }
             }
 
-            IconButton(
-                onClick = onNextMonth,
-                modifier = Modifier.size(36.dp)
-            ) {
+            IconButton(onClick = onNextMonth, modifier = Modifier.size(36.dp)) {
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = "Next Month",
@@ -120,13 +129,13 @@ fun MonthNavigationBar(
             }
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(2.dp))
 
-        // Week navigation within selected month
+        // ── Week strip ─────────────────────────────────────────────────────
         WeekNavigationRow(
-            selectedMonth = selectedMonth,
+            selectedMonth   = selectedMonth,
             currentWeekStart = currentWeekStart,
-            onWeekSelected = onWeekSelected
+            onWeekSelected  = onWeekSelected
         )
     }
 }
@@ -137,32 +146,33 @@ private fun WeekNavigationRow(
     currentWeekStart: LocalDate,
     onWeekSelected: (LocalDate) -> Unit
 ) {
-    // Generate all week starts in the selected month in chronological order
+    // All Mondays that have at least one day in the selected month
     val weeks = buildList {
-        var day = selectedMonth.atDay(1).with(
-            java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY)
-        )
+        var monday = selectedMonth.atDay(1)
+            .with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
         val monthEnd = selectedMonth.atEndOfMonth()
-        while (!day.isAfter(monthEnd)) {
-            add(day)
-            day = day.plusWeeks(1)
+        while (!monday.isAfter(monthEnd)) {
+            add(monday)
+            monday = monday.plusWeeks(1)
         }
     }
 
-    val dateFormatter = DateTimeFormatter.ofPattern("d MMM")
+    val fmt = DateTimeFormatter.ofPattern("d MMM")
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         weeks.forEach { weekStart ->
-            val weekEnd = weekStart.plusDays(6)
+            val weekEnd    = weekStart.plusDays(6)
             val isSelected = weekStart == currentWeekStart
+
             val bgColor by animateColorAsState(
-                targetValue = if (isSelected) AccentCyan.copy(alpha = 0.25f) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f),
+                targetValue = if (isSelected) AccentCyan.copy(alpha = 0.20f)
+                              else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.10f),
                 label = "week_bg"
             )
             val borderCol by animateColorAsState(
@@ -175,15 +185,19 @@ private fun WeekNavigationRow(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .background(bgColor)
-                    .border(width = 1.dp, color = borderCol, shape = RoundedCornerShape(8.dp))
+                    .border(1.dp, borderCol, RoundedCornerShape(8.dp))
                     .clickable { onWeekSelected(weekStart) }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
+                // Show full dates with year so "Jan 2026" vs "Jan 2027" are never confused
+                val startStr = weekStart.format(fmt) + if (weekStart.year != weekEnd.year)
+                    " '${weekStart.year.toString().takeLast(2)}" else ""
+                val endStr   = weekEnd.format(fmt) + " '${weekEnd.year.toString().takeLast(2)}"
                 Text(
-                    text = "${weekStart.format(dateFormatter)} – ${weekEnd.format(dateFormatter)}",
-                    fontSize = 11.sp,
+                    text  = "$startStr – $endStr",
+                    fontSize = 10.sp,
                     color = textColor,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }

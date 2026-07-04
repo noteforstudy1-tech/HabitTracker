@@ -203,32 +203,7 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                         scope.launch { drawerState.close(); currentScreen = "settings" }
                     }
 
-                    Spacer(Modifier.height(20.dp))
-                    DrawerSectionLabel("BACKUP & RESTORE")
-                    Spacer(Modifier.height(8.dp))
-
-                    DrawerMenuItem(Icons.Default.Share, "Export Data (Share)") {
-                        scope.launch {
-                            val json = viewModel.getExportJsonString()
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_SUBJECT, "HabitTracker Backup")
-                                putExtra(Intent.EXTRA_TEXT, json)
-                            }
-                            context.startActivity(Intent.createChooser(intent, "Share Backup"))
-                            drawerState.close()
-                        }
-                    }
-
-                    Spacer(Modifier.height(6.dp))
-
-                    DrawerMenuItem(Icons.Default.Upload, "Import Backup") {
-                        importInputText = ""
-                        showImportDialog = true
-                        scope.launch { drawerState.close() }
-                    }
-
-                    Spacer(modifier = Modifier.weight(1f))
+                    // Removed Backup & Restore section since Android Auto Backup handles it seamlessly in the background
 
                     // ── Sticky footer ────────────────────────────────────────
                     Column(modifier = Modifier.fillMaxWidth()) {

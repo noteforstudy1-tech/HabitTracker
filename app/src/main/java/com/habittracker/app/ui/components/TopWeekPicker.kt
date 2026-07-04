@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.PopupPositionProvider
 import com.habittracker.app.ui.theme.*
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -98,6 +99,7 @@ fun TopWeekPicker(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WeekStrip(
     selectedMonth: YearMonth,
@@ -136,7 +138,7 @@ private fun WeekStrip(
             .padding(horizontal = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        weeks.forEach { weekStart ->
+        weeks.forEachIndexed { index, weekStart ->
             val weekEnd    = weekStart.plusDays(6)
             val isSelected = (weekStart == currentWeekStart)
             val containsToday = !today.isBefore(weekStart) && !today.isAfter(weekEnd)
@@ -163,23 +165,37 @@ private fun WeekStrip(
                 else          -> MaterialTheme.colorScheme.onSurfaceVariant
             }
 
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(chipBg)
-                    .border(1.dp, chipBorder, RoundedCornerShape(10.dp))
-                    .clickable { onWeekSelected(weekStart) }
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            val startStr = weekStart.format(fmt)
+            val endStr   = weekEnd.format(fmt)
+            val yearTag  = if (weekStart.year != weekEnd.year) " '${weekEnd.year.toString().takeLast(2)}" else ""
+            val tooltipText = "$startStr – $endStr$yearTag"
+            
+            val tooltipState = rememberTooltipState()
+
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                tooltip = {
+                    PlainTooltip {
+                        Text(tooltipText, fontSize = 12.sp)
+                    }
+                },
+                state = tooltipState
             ) {
-                val startStr = weekStart.format(fmt)
-                val endStr   = weekEnd.format(fmt)
-                val yearTag  = if (weekStart.year != weekEnd.year) " '${weekEnd.year.toString().takeLast(2)}" else ""
-                Text(
-                    text       = "$startStr – $endStr$yearTag",
-                    fontSize   = 11.sp,
-                    color      = textColor,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(chipBg)
+                        .border(1.dp, chipBorder, RoundedCornerShape(10.dp))
+                        .clickable { onWeekSelected(weekStart) }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text       = "Week ${index + 1}",
+                        fontSize   = 12.sp,
+                        color      = textColor,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                    )
+                }
             }
         }
     }

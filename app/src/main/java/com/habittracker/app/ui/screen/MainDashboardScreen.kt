@@ -305,10 +305,6 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            val monthLabel = remember(state.selectedMonth) {
-                                state.selectedMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
-                            }
-                            Text(monthLabel, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -353,15 +349,6 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                 ) {
                     Icon(Icons.Default.Add, "Add Habit")
                 }
-            },
-            bottomBar = {
-                MonthNavigationBar(
-                    selectedMonth    = state.selectedMonth,
-                    currentWeekStart = state.selectedWeekStart,
-                    onPrevMonth      = { viewModel.selectMonth(state.selectedMonth.minusMonths(1)) },
-                    onNextMonth      = { viewModel.selectMonth(state.selectedMonth.plusMonths(1)) },
-                    onWeekSelected   = { monday -> viewModel.selectWeekStart(monday) }
-                )
             }
         ) { padding ->
             LazyColumn(
@@ -372,6 +359,17 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp)
             ) {
+                // ── Top Navigation (Month / Week) ───────────────────────────
+                item {
+                    TopWeekPicker(
+                        selectedMonth    = state.selectedMonth,
+                        currentWeekStart = state.selectedWeekStart,
+                        onPrevMonth      = { viewModel.selectMonth(state.selectedMonth.minusMonths(1)) },
+                        onNextMonth      = { viewModel.selectMonth(state.selectedMonth.plusMonths(1)) },
+                        onWeekSelected   = { monday -> viewModel.selectWeekStart(monday) }
+                    )
+                }
+
                 // ── Stats cards ─────────────────────────────────────────────
                 item {
                     Row(

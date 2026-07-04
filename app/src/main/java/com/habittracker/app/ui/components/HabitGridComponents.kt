@@ -81,7 +81,6 @@ fun HabitGridHeader(
 @Composable
 private fun DayHeaderCell(date: LocalDate, isToday: Boolean) {
     val dayLetter = date.format(DateTimeFormatter.ofPattern("EEE")).take(1)
-    val dayNum    = date.dayOfMonth
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -90,28 +89,10 @@ private fun DayHeaderCell(date: LocalDate, isToday: Boolean) {
     ) {
         Text(
             text = dayLetter,
-            fontSize = 9.sp,
+            fontSize = 11.sp,
             color = if (isToday) AccentCyan else MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal
+            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium
         )
-        Spacer(Modifier.height(2.dp))
-        Box(
-            modifier = Modifier
-                .size(20.dp)
-                .then(
-                    if (isToday) Modifier
-                        .background(AccentPurple, RoundedCornerShape(5.dp))
-                    else Modifier
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = dayNum.toString(),
-                fontSize = 9.sp,
-                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium,
-                color = if (isToday) Color.White else MaterialTheme.colorScheme.onSurface
-            )
-        }
     }
 }
 
@@ -176,6 +157,7 @@ fun HabitRow(
         Row(modifier = Modifier.weight(0.70f)) {
             weekDates.forEach { date ->
                 val done      = isCompleted(date)
+                val isToday   = date == today
                 val future    = date.isAfter(today)
                 val scheduled = isScheduled(date)
                 Box(
@@ -184,13 +166,14 @@ fun HabitRow(
                 ) {
                     CheckboxCell(
                         checked     = done,
+                        isToday     = isToday,
                         isFuture    = future,
                         isScheduled = scheduled,
                         accentColor = accentColor,
                         hapticsEnabled = hapticsEnabled,
                         compactMode    = compactMode,
                         onClick     = {
-                            if (!future && scheduled) onToggle(date)
+                            if (isToday && scheduled) onToggle(date)
                         }
                     )
                 }
@@ -204,6 +187,7 @@ fun HabitRow(
 @Composable
 fun CheckboxCell(
     checked: Boolean,
+    isToday: Boolean,
     isFuture: Boolean,
     isScheduled: Boolean,
     accentColor: Color,
@@ -246,7 +230,7 @@ fun CheckboxCell(
             .clickable(
                 interactionSource = interactionSource,
                 indication        = ripple(bounded = true, color = accentColor), // ripple for tactile feedback
-                enabled           = !isFuture && isScheduled,
+                enabled           = isToday && isScheduled,
                 onClick           = {
                     if (hapticsEnabled) {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)

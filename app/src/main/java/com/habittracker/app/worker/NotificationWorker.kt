@@ -30,7 +30,7 @@ class NotificationWorker(
             val channel = NotificationChannel(
                 channelId,
                 "Daily Habit Reminders",
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Notifies you to check in on your habits and wellness targets."
             }
@@ -47,14 +47,18 @@ class NotificationWorker(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Simple default android drawable (app icon) can be used
-        val iconRes = android.R.drawable.ic_lock_idle_alarm
+        val messages = listOf(
+            Pair("⚠️ Streak at Risk!", "Don't break your streak! You have habits left to complete today."),
+            Pair("Future You Will Thank You 🌱", "Take 2 minutes to log your progress for today. It matters!"),
+            Pair("Stay Consistent! 🔥", "Consistency is key to mastery. Open Aham to check off today's habits.")
+        )
+        val selectedMessage = messages.random()
 
         val notification = NotificationCompat.Builder(applicationContext, channelId)
-            .setSmallIcon(iconRes)
-            .setContentTitle("Time for your check-in! 🌟")
-            .setContentText("Keep your streak alive! Log your habits and wellness for today.")
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setContentTitle(selectedMessage.first)
+            .setContentText(selectedMessage.second)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .build()

@@ -64,6 +64,9 @@ dependencies {
     // Splashscreen
     implementation("androidx.core:core-splashscreen:1.0.1")
 
+    // Konfetti
+    implementation("nl.dionsegijn:konfetti-compose:2.0.4")
+
     // Lifecycle Compose (collectAsStateWithLifecycle)
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.2")
 

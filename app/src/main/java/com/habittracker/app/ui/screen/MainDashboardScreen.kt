@@ -239,7 +239,7 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
     ) {
         Scaffold(
             containerColor = Color.Transparent,
-            modifier = Modifier.background(bgBrush),
+            modifier = Modifier.background(bgBrush).systemBarsPadding(),
             topBar = {
                 TopAppBar(
                     navigationIcon = {
@@ -348,11 +348,6 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onBackground
                             )
-                            val weekRange = remember(state.selectedWeekStart) {
-                                val end = state.selectedWeekStart.plusDays(6)
-                                "${state.selectedWeekStart.format(DateTimeFormatter.ofPattern("d MMM"))} – ${end.format(DateTimeFormatter.ofPattern("d MMM yyyy"))}"
-                            }
-                            Text(weekRange, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -409,7 +404,7 @@ fun MainDashboardScreen(viewModel: HabitTrackerViewModel) {
                 item {
                     WellnessSection(
                         wellness     = state.wellnessEntry,
-                        selectedDate = state.selectedDate,
+                        selectedDate = state.today,
                         onMoodChange = viewModel::updateMood,
                         onSleepChange = viewModel::updateSleep
                     )

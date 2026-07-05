@@ -2,7 +2,9 @@ package com.habittracker.app.ui.components
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.delay
 import nl.dionsegijn.konfetti.compose.KonfettiView
 import nl.dionsegijn.konfetti.core.Party
 import nl.dionsegijn.konfetti.core.Position
@@ -16,6 +18,11 @@ fun ConfettiOverlay(
 ) {
     if (!isVisible) return
 
+    LaunchedEffect(isVisible) {
+        delay(4000)
+        onAnimationEnd()
+    }
+
     val party = Party(
         speed = 0f,
         maxSpeed = 30f,
@@ -28,13 +35,6 @@ fun ConfettiOverlay(
 
     KonfettiView(
         modifier = Modifier.fillMaxSize(),
-        parties = listOf(party),
-        updateListener = object : nl.dionsegijn.konfetti.compose.OnParticleSystemUpdateListener {
-            override fun onParticleSystemEnded(system: nl.dionsegijn.konfetti.core.ParticleSystem, activeSystems: Int) {
-                if (activeSystems == 0) {
-                    onAnimationEnd()
-                }
-            }
-        }
+        parties = listOf(party)
     )
 }

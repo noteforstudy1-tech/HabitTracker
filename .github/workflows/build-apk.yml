@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Repository
@@ -28,19 +30,22 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon
 
+      - name: Rename APK
+        run: mv app/build/outputs/apk/debug/app-debug.apk Aham.apk
+
       - name: Upload APK as Artifact (For Action Logs)
         uses: actions/upload-artifact@v4
         with:
           name: Aham-App-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: Aham.apk
 
       - name: Create or Update Latest Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: "Aham - Latest Version"
-          body: "Download the latest APK file below to install the app directly on your Android phone."
-          files: app/build/outputs/apk/debug/app-debug.apk
+          body: "Download the Aham.apk file below to install the app directly on your Android phone."
+          files: Aham.apk
           prerelease: false
           make_latest: true
         env:

@@ -22,10 +22,12 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Grant Execute Permission for Gradlew
+      - name: Fix Windows Line Endings
         run: |
+          sudo apt-get install -y dos2unix
+          dos2unix gradlew
+          dos2unix gradle/wrapper/gradle-wrapper.properties
           chmod +x gradlew
-          sed -i 's/\r$//' gradlew
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon

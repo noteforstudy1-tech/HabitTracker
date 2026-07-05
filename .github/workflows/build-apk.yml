@@ -1,0 +1,45 @@
+name: Build and Publish APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Grant Execute Permission for Gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK as Artifact (For Action Logs)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aham-App-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Create or Update Latest Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Aham - Latest Version"
+          body: "Download the latest APK file below to install the app directly on your Android phone."
+          files: app/build/outputs/apk/debug/app-debug.apk
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
